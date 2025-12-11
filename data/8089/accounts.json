@@ -1,0 +1,53 @@
+{
+  "abcwager": [
+    {
+      "username": "Qr3834",
+      "password": "TEST",
+      "user_max": 95,
+      "service": "abcwager"
+    }
+  ],
+  "action": [
+    {
+      "username": "WWPLAYER1",
+      "password": "123",
+      "user_max": 95,
+      "service": "action"
+    }
+  ],
+  "betwindycity": [
+    {
+      "username": "Doc205",
+      "password": "christian",
+      "user_max": 95
+    }
+  ],
+  "fesster": [
+    {
+      "username": "az1601",
+      "password": "bmw",
+      "user_max": 95
+    }
+  ],
+  "1bv": [
+    {
+      "username": "wp5023",
+      "password": "Giants",
+      "user_max": 95
+    }
+  ],
+  "highroller": [
+    {
+      "username": "WWG15",
+      "password": "1",
+      "user_max": 95
+    }
+  ],
+  "strikerich": [
+    {
+      "username": "RD341",
+      "password": "R1",
+      "user_max": 95
+    }
+  ]
+}
