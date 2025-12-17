@@ -28,7 +28,7 @@ exports.getFinalEvents = (query, services) => {
                     const suffix = "@" + query.split("@")[1].trim();
                     const lastName = prefix.split(" ").slice(-1)[0];
 
-                    if (title.startsWith(sports) && (title.includes(lastName) || title.includes(prefix)) && title.includes(suffix)) {
+                    if (title.startsWith(sports) && new RegExp(lastName + "|" + prefix, "i").test(title) && title.includes(suffix)) {
                         finalEvents.push({ serviceName, title, ...data });
                     }
                 }
