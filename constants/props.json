@@ -1,0 +1,110 @@
+{
+    "MLB": [
+        ["Hits", "Hit", "Total Hits", "Batter Hits"],
+        ["Home Runs", "HR", "Homer", "Homeruns", "Home Run"],
+        ["Runs Batted In", "RBI", "RBIs", "Runs Batted In (RBI)"],
+        ["Runs Scored", "Runs"],
+        ["Total Bases", "TB", "Total Bases (TB)"],
+        ["Hits+Runs+RBIs", "H+R+RBI", "Hits Runs RBIs", "Batter H+R+RBI"],
+        ["Singles", "1B", "Single"],
+        ["Doubles", "2B", "Double"],
+        ["Triples", "3B", "Triple"],
+        ["Strikeouts (Batter)", "SO", "Batter Strikeouts"],
+        ["Walks", "BB", "Base on Balls", "Batter Walks"],
+        ["Stolen Bases", "SB", "Stolen Base", "Steals"],
+        ["Batting Average", "AVG", "BA"],
+        ["On Base Percentage", "OBP", "On-Base %"],
+
+        ["Pitching Strikeouts", "Pitcher SO", "Strikeouts (Pitcher)"],
+        ["Outs Recorded", "Outs", "Pitching Outs"],
+        ["Innings Pitched", "IP", "Pitching Innings"],
+        ["Earned Runs Allowed", "ER", "Earned Runs"],
+        ["Hits Allowed", "H Allowed", "Hits Allowed (Pitcher)"],
+        ["Walks Allowed", "BB Allowed", "Pitcher Walks"],
+        ["Pitcher Win", "Win"],
+        ["Pitcher Loss", "Loss"],
+        ["Quality Start", "QS", "Quality Start (QS)"],
+        ["Pitch Count", "Pitches Thrown", "Total Pitches"]
+    ],
+    "NBA": [
+        ["Points+Rebounds+Assists", "PRA", "PTS+REB+AST", "Points Rebounds Assists"],
+        ["Points+Rebounds", "PR", "PTS+REB"],
+        ["Points+Assists", "PA", "PTS+AST"],
+        ["Rebounds+Assists", "RA", "REB+AST"],
+        ["Steals+Blocks", "Stocks", "STL+BLK"],
+        
+        ["Most Points", "Most PTS", "Most Points Scored"],
+        ["Points", "PTS", "Points Scored", "Total Points"],
+        ["Most Rebounds", "Most RBS", "Most REB", "Most Rebounds"],
+        ["Rebounds", "RBS", "REB", "Total Rebounds"],
+        ["Assists", "ASSTS", "AST", "Total Assists"],
+        ["Blocks", "BLKS", "BLK", "Blocks Made"],
+        ["Steals", "STLS", "STL", "Steals Made"],
+      
+        ["3PT FG Made", "3PM", "3 Pointers Made", "Three Pointers Made", "Made Threes"],
+        ["Field Goals Made", "FGM", "FG Made"],
+        ["Field Goals Attempted", "FGA", "FG Attempts"],
+        ["Free Throws Made", "FTM", "FT Made"],
+        ["Free Throws Attempted", "FTA", "FT Attempts"],
+      
+        ["Turnovers", "TO", "TOV"],
+        ["Personal Fouls", "PF", "Fouls"],
+        ["Double-Double", "DD", "Double Double"],
+        ["Triple-Double", "TD", "Triple Double"],
+        ["Minutes Played", "MIN", "Minutes"]
+    ],
+    "NFL": [
+        ["Passing Yards", "PASS YDS", "Pass Yards", "QB Passing Yards"],
+        ["Passing Touchdowns", "PASS TDS", "Pass TDs", "Passing TD"],
+        ["Passing Attempts", "PASS ATTS", "Pass Attempts"],
+        ["Passing Completions", "PASS CMPS", "Completions"],
+        ["Interceptions Thrown", "INT", "Passing INTs"],
+        ["Longest Passing Completion", "LG CMP", "Longest Completion"],
+        ["Passing+Rushing Yards", "PASS+RSH YDS", "Total Yards"],
+      
+        ["Rushing Yards", "RSH YDS", "Rush Yards"],
+        ["Rushing Attempts", "RSH ATTS", "Rush Attempts", "Carries"],
+        ["Rushing Touchdowns", "RSH TDS", "Rush TDs"],
+        ["Longest Rush", "LG RUSH", "Longest Carry"],
+      
+        ["Receiving Yards", "RECV YDS", "Rec Yards"],
+        ["Receptions", "RECS", "Catches"],
+        ["Receiving Touchdowns", "REC TDS", "Receiving TDs"],
+        ["Longest Reception", "LG REC", "Longest Catch"],
+      
+        ["Total Touchdowns", "Total TDs", "TDs"],
+        ["Fumbles", "FUM", "Total Fumbles"],
+        ["Fumbles Lost", "FUM LOST"],
+      
+        ["Kicking Points", "K Points", "Kicker Points"],
+        ["Field Goals Made", "FGM", "Field Goals"],
+        ["Extra Points Made", "XP", "PAT"],
+      
+        ["Tackles", "TKL", "Total Tackles"],
+        ["Assists", "AST", "Assisted Tackles"],
+        ["Tackles+Assists", "Tackles + Assists"],
+        ["Total Sacks", "SACKS", "TOT SACKS"],
+        ["Interceptions (Defense)", "DEF INT", "INTs"],
+        ["Forced Fumbles", "FF"]
+    ],
+    "NHL": [
+        ["Goals", "Goals Scored"],
+        ["Assists", "Total Assists"],
+        ["Points", "PTS", "Player Points"],
+        ["Total Points", "Points (Over/Under)"],
+        ["Shots on Goal", "SOG", "Shots"],
+        ["Blocks", "BLK", "Blocked Shots"],
+        ["Hits", "HITS", "Body Checks"],
+      
+        ["Power Play Points", "PPP", "PP Points"],
+        ["Short Handed Points", "SHP", "SH Points"],
+      
+        ["Time on Ice", "TOI", "Ice Time"],
+        ["Faceoff Wins", "FOW", "Faceoffs Won"],
+      
+        ["Goalie Saves", "Saves", "SV"],
+        ["Goals Against", "GA"],
+        ["Shutouts", "SO", "Shutouts (Goalie)"],
+        ["Wins (Goalie)", "Goalie Wins"]
+    ]
+}

@@ -1,0 +1,23 @@
+{
+    "ft": ["ft", "full time", "game lines"],
+    
+    "1h": ["1hal", "1h", "1st half", "1 half", "first half", "1st hal"],
+    "2h": ["2hal", "2h", "2nd half", "2 half", "second half", "2nd hal"],
+
+    "1q": ["1qtr", "1q", "1st quarter", "1st qtr", "first quarter"],
+    "2q": ["2qtr", "2q", "2nd quarter", "2nd qtr", "second quarter"],
+    "3q": ["3qtr", "3q", "3rd quarter", "3rd qtr", "third quarter"],
+    "4q": ["4qtr", "4q", "4th quarter", "4th qtr", "fourth quarter"],
+    
+    "1p": ["1per", "1p", "1st period", "1st per", "first period"],
+    "2p": ["2per", "2p", "2nd period", "2nd per", "second period"],
+    "3p": ["3per", "3p", "3rd period", "3rd per", "third period"],
+    "4p": ["4per", "4p", "4th period", "4th per", "fourth period"],
+
+    "1s": ["1st set", "first set"],
+    "2s": ["2nd set", "second set"],
+    "3s": ["3rd set", "third set"],
+    "4s": ["4th set", "fourth set"],
+    "sets": ["sets", "(sets)"],
+    "games": ["games", "(games)"]
+}

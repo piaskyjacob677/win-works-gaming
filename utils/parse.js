@@ -1,6 +1,6 @@
 const { resolveApp } = require("../web/utils/path.js");
-const periods = require(resolveApp(`${process.env.DIR_DATA}/periods.json`));
-const fixedAliases = require(resolveApp(`${process.env.DIR_DATA}/fixedAliases.json`));
+const periods = require(resolveApp("./constants/periods.json"));
+const aliases = require(resolveApp("./constants/aliases.json"));
 
 function searchTeamName(input, subText, template) {
     if (subText == null) return [0, ""];
@@ -27,14 +27,14 @@ function searchTeamName(input, subText, template) {
 
 function extractBetTeamName(input) {
     let template;
-    if (input.includes("mlb")) template = { MLB: fixedAliases.MLB || [] };
-    else if (input.includes("milb")) template = { MiLB: fixedAliases.MiLB || [] };
-    else if (input.includes("wnba")) template = { WNBA: fixedAliases.WNBA || [] };
-    else if (input.includes("nba")) template = { NBA: fixedAliases.NBA || [] };
-    else if (input.includes("nfl") || input.includes("football")) template = { NFL: fixedAliases.NFL || [] };
-    else if (input.includes("nhl") || input.includes("hockey")) template = { NHL: fixedAliases.NHL || [] };
-    else if (input.includes("basketball")) template = { NBA: fixedAliases.NBA || [], WNBA: fixedAliases.WNBA || [] };
-    else if (input.includes("baseball")) template = { MLB: fixedAliases.MLB || [], MiLB: fixedAliases.MiLB || [] };
+    if (input.includes("mlb")) template = { MLB: aliases.MLB || [] };
+    else if (input.includes("milb")) template = { MiLB: aliases.MiLB || [] };
+    else if (input.includes("wnba")) template = { WNBA: aliases.WNBA || [] };
+    else if (input.includes("nba")) template = { NBA: aliases.NBA || [] };
+    else if (input.includes("nfl") || input.includes("football")) template = { NFL: aliases.NFL || [] };
+    else if (input.includes("nhl") || input.includes("hockey")) template = { NHL: aliases.NHL || [] };
+    else if (input.includes("basketball")) template = { NBA: aliases.NBA || [], WNBA: aliases.WNBA || [] };
+    else if (input.includes("baseball")) template = { MLB: aliases.MLB || [], MiLB: aliases.MiLB || [] };
 
     input = input.replace(/\s+vrs\s+|\s+vs\s+|\s+v.s\s+|\s+vs.\s+|\//g, " vrs ");
     

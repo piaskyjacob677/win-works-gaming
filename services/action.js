@@ -1,6 +1,6 @@
 const fs = require("fs");
 const fetch = require("node-fetch");
-const { filterLeague, getPeriodOrder, prettyLog, getFullName, cleanTeamName, toleranceCheck } = require("../utils/utils.js");
+const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { resolveApp } = require("../web/utils/path.js");
 
 class Action {
@@ -25,7 +25,7 @@ class Action {
             const data = await response.json();
 
             for (const league of (data?.result || [])) {
-                const result = filterLeague(league.IndexName, league.Description);
+                const result = leagueNameCleaner(league.IndexName, league.Description);
                 if (!result) continue;
                 leagues.push({ id: league.IdLeague, ...result })
             }
@@ -37,7 +37,7 @@ class Action {
     }
     async getLeagueMatches(league, sessionId) {
         try {
-            const { id, sport, desc, order } = league;
+            const { id, sport, desc } = league;
 
             const response = await fetch(`https://backend.play23.ag/wager/NewScheduleHelper.aspx?WT=0&lg=${id}`, {
                 headers: {
@@ -52,84 +52,96 @@ class Action {
             const games = listLeagues.reduce((prev, current) => [...prev, ...current], []).map(v => v.Games).reduce((prev, current) => [...prev, ...current], []);
 
             for (const gm of games) {
-                const vtm_full = getFullName(sport, cleanTeamName(gm.vtm || ""));
-                const htm_full = getFullName(sport, cleanTeamName(gm.htm || ""));
-                const vtm = vtm_full ? vtm_full : gm.vtm || "";
-                const htm = htm_full ? htm_full : gm.htm || "";
+                let team1 = gm.vtm;
+                let team2 = gm.htm;
+                let is_props = new RegExp("player props", "i").test(desc);
+                if (is_props) {
+                    if (new RegExp("most", "i").test(team1 + " " + team2)) continue;
+                    
+                    team1 = playerPropsCleaner(sport, team1);
+                    team2 = playerPropsCleaner(sport, team2);
+                }
+                else {
+                    team1 = teamNameCleaner(team1);
+                    team2 = teamNameCleaner(team2);
+                    team1 = getFullName(sport, team1) || team1;
+                    team2 = getFullName(sport, team2) || team2;
+                }
 
-                const { period, matchOrder } = getPeriodOrder(sport + " " + desc + " " + gm.vtm + " " + gm.htm, order);
+                const period = getPeriod(sport + " " + desc + " " + gm.vtm + " " + gm.htm);
+                const order = period.startsWith("1") ? 1000 : period.startsWith("2") ? 2000 : period.startsWith("3") ? 3000 : period.startsWith("4") ? 4000 : 0;
 
-                const base = { sport, desc, IdLeague: id, idgm: gm.idgm, hasRotNumber: this.hasRotNumber };
+                const base = { sport, desc, IdLeague: id, idgm: gm.idgm, hasRotNumber: this.hasRotNumber, is_props };
                 const isTT = `${gm.htm} ${gm.vtm}`.toLowerCase().includes("team total");
                 const gl = gm.GameLines[0];
 
                 if (gl.voddsh) {
                     const odds = Number(gl.voddst);
-                    const keyName = `${sport} [${gm.vnum}] ${vtm} ${period} ml`;
+                    const keyName = `${sport} [${gm.vnum}] ${team1} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, idmk: 4, points: 0, odds, suffix, order: matchOrder + 0 };
+                    this.matches[keyName] = { ...base, idmk: 4, points: 0, odds, suffix, order: order + 0 };
                 }
                 if (gl.hoddsh) {
                     const odds = Number(gl.hoddst);
-                    const keyName = `${sport} [${gm.hnum}] ${htm} ${period} ml`;
+                    const keyName = `${sport} [${gm.hnum}] ${team2} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, idmk: 5, points: 0, odds, suffix, order: matchOrder + 1 };
+                    this.matches[keyName] = { ...base, idmk: 5, points: 0, odds, suffix, order: order + 1 };
                 }
                 if (gl.vsprdh) {
                     const points = Number(gl.vsprdt);
                     const odds = Number(gl.vsprdoddst);
-                    const keyName = `${sport} [${gm.vnum}] ${vtm} ${period} spread`;
+                    const keyName = `${sport} [${gm.vnum}] ${team1} ${period} spread`;
                     const suffix = `${points == 0 ? "PK" : points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, idmk: 0, points, odds, suffix, order: matchOrder + 2 };
+                    this.matches[keyName] = { ...base, idmk: 0, points, odds, suffix, order: order + 2 };
                 }
                 if (gl.hsprdh) {
                     const points = Number(gl.hsprdt);
                     const odds = Number(gl.hsprdoddst);
-                    const keyName = `${sport} [${gm.hnum}] ${htm} ${period} spread`;
+                    const keyName = `${sport} [${gm.hnum}] ${team2} ${period} spread`;
                     const suffix = `${points == 0 ? "PK" : points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, idmk: 1, points, odds, suffix, order: matchOrder + 3 };
+                    this.matches[keyName] = { ...base, idmk: 1, points, odds, suffix, order: order + 3 };
                 }
                 if (gl.ovh && isTT) {
                     const points = Number(gl.ovt);
                     const odds = Number(gl.ovoddst);
-                    const keyName = `${sport} [${gm.hnum}] ${htm} ${period} tto`;
+                    const keyName = `${sport} [${gm.hnum}] ${team2} ${period} tto`;
                     const suffix = `${-points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, idmk: 2, points, odds, suffix, order: matchOrder + 4 };
+                    this.matches[keyName] = { ...base, idmk: 2, points, odds, suffix, order: order + 4 };
                 }
                 if (gl.unh && isTT) {
                     const points = Number(gl.unt);
                     const odds = Number(gl.unoddst);
-                    const keyName = `${sport} [${gm.hnum}] ${htm} ${period} ttu`;
+                    const keyName = `${sport} [${gm.hnum}] ${team2} ${period} ttu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, idmk: 3, points, odds, suffix, order: matchOrder + 5 };
+                    this.matches[keyName] = { ...base, idmk: 3, points, odds, suffix, order: order + 5 };
                 }
                 if (gl.vspoddst) {
                     const odds = Number(gl.vspoddst);
-                    const keyName = `${sport} [${gm.vnum}] ${vtm} : ${htm} ${period} draw`;
+                    const keyName = `${sport} [${gm.vnum}] ${team1} : ${team2} ${period} draw`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, idmk: 6, points: 0, odds, suffix, order: matchOrder + 6 };
+                    this.matches[keyName] = { ...base, idmk: 6, points: 0, odds, suffix, order: order + 6 };
                 }
                 if (gl.ovh && !isTT) {
                     const points = Number(gl.ovt);
                     const odds = Number(gl.ovoddst);
-                    const title = gm.vtm == gm.htm ? `[${gm.vnum}] ${vtm}` : `[${gm.vnum}] ${vtm} : ${htm}`;
+                    const title = gm.vtm == gm.htm ? `[${gm.vnum}] ${team1}` : `[${gm.vnum}] ${team1} : ${team2}`;
                     const keyName = `${sport} ${title} ${period} to`;
                     const suffix = `${-points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, idmk: 2, points, odds, suffix, order: matchOrder + 7 };
+                    this.matches[keyName] = { ...base, idmk: 2, points, odds, suffix, order: order + 7 };
                 }
                 if (gl.unh && !isTT) {
                     const points = Number(gl.unt);
                     const odds = Number(gl.unoddst);
-                    const title = gm.vtm == gm.htm ? `[${gm.hnum}] ${htm}` : `[${gm.vnum}] ${vtm} : ${htm}`;
+                    const title = gm.vtm == gm.htm ? `[${gm.hnum}] ${team2}` : `[${gm.vnum}] ${team1} : ${team2}`;
                     const keyName = `${sport} ${title} ${period} tu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, idmk: 3, points, odds, suffix, order: matchOrder + 8 };
+                    this.matches[keyName] = { ...base, idmk: 3, points, odds, suffix, order: order + 8 };
                 }
                 if (gl.oddsh) {
                     const odds = Number(gl.odds);
-                    const keyName = `${sport} [${gm.hnum}] ${htm} ${period} ml`;
+                    const keyName = `${sport} [${gm.hnum}] ${team2} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, idmk: gm.hnum || gl.tmnum, points: 0, odds, suffix, order: matchOrder + 9 };
+                    this.matches[keyName] = { ...base, idmk: gm.hnum || gl.tmnum, points: 0, odds, suffix, order: order + 9 };
                 }
             }
 

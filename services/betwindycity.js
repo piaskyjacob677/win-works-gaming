@@ -1,6 +1,6 @@
 const fs = require("fs");
 const fetch = require("node-fetch");
-const { filterLeague, getPeriodOrder, prettyLog, getFullName, cleanTeamName, toleranceCheck } = require("../utils/utils.js");
+const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { resolveApp } = require("../web/utils/path.js");
 
 class Betwindycity {
@@ -50,7 +50,7 @@ class Betwindycity {
 
             for (const league of preLeagues) {
                 const { id, IdSportType, PeriodNumber } = league;
-                const result = filterLeague(league.sport, league.SportSubType + " " + league.PeriodDescription);
+                const result = leagueNameCleaner(league.sport, league.SportSubType + " " + league.PeriodDescription);
                 if (!result) continue;
                 leagues.push({ id, IdSportType, PeriodNumber, ...result })
             }
@@ -70,7 +70,7 @@ class Betwindycity {
     }
     async getLeagueMatches(league, token) {
         try {
-            const { id, IdSportType, PeriodNumber, sport, desc, order } = league;
+            const { id, IdSportType, PeriodNumber, sport, desc } = league;
             let index = `${id}${IdSportType}${PeriodNumber}`;
 
             const response = await fetch("https://betwindycity.com/player-api/api/wager/schedules/S/0", {
@@ -114,28 +114,40 @@ class Betwindycity {
             });
             
             for (const gm of games) {
-                const team1_full = getFullName(sport, cleanTeamName(gm.team1));
-                const team2_full = getFullName(sport, cleanTeamName(gm.team2));
-                const team1 = team1_full? team1_full : gm.team1;
-                const team2 = team2_full? team2_full : gm.team2;
+                let team1 = gm.team1;
+                let team2 = gm.team2;
+                let is_props = new RegExp("player props", "i").test(desc);
+                if (is_props) {
+                    if (new RegExp("most", "i").test(team1 + " " + team2)) continue;
+                    
+                    team1 = playerPropsCleaner(sport, team1);
+                    team2 = playerPropsCleaner(sport, team2);
+                }
+                else {
+                    team1 = teamNameCleaner(team1);
+                    team2 = teamNameCleaner(team2);
+                    team1 = getFullName(sport, team1) || team1;
+                    team2 = getFullName(sport, team2) || team2;
+                }
 
-                const { period, matchOrder } = getPeriodOrder(sport + " " + desc + " " + gm.team1 + " " + gm.team2, order);
-
-                const base = { sport, desc, idlg: id, hasRotNumber: this.hasRotNumber };
+                const period = getPeriod(sport + " " + desc + " " + gm.team1 + " " + gm.team2);
+                const order = period.startsWith("1") ? 1000 : period.startsWith("2") ? 2000 : period.startsWith("3") ? 3000 : period.startsWith("4") ? 4000 : 0;
+                
+                const base = { sport, desc, idlg: id, hasRotNumber: this.hasRotNumber, is_props };
 
                 if (gm.ml1) {
                     const odds = Number(gm.ml1.split("_")[3]);
                     const limit = limits?.m;
                     const keyName = `${sport} [#${index}] ${team1} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.ml1, points: 0, odds, limit, suffix, order: matchOrder + 0 };
+                    this.matches[keyName] = { ...base, sel: gm.ml1, points: 0, odds, limit, suffix, order: order + 0 };
                 }
                 if (gm.ml2) {
                     const odds = Number(gm.ml2.split("_")[3]);
                     const limit = limits?.m;
                     const keyName = `${sport} [#${index}] ${team2} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.ml2, points: 0, odds, limit, suffix, order: matchOrder + 1 };
+                    this.matches[keyName] = { ...base, sel: gm.ml2, points: 0, odds, limit, suffix, order: order + 1 };
                 }
                 if (gm.sprd1) {
                     const points = Number(gm.sprd1.split("_")[2]);
@@ -143,7 +155,7 @@ class Betwindycity {
                     const limit = limits?.s;
                     const keyName = `${sport} [#${index}] ${team1} ${period} spread`;
                     const suffix = `${points == 0 ? "PK" : points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.sprd1, points, odds, limit, suffix, order: matchOrder + 2 };
+                    this.matches[keyName] = { ...base, sel: gm.sprd1, points, odds, limit, suffix, order: order + 2 };
                 }
                 if (gm.sprd2) {
                     const points = Number(gm.sprd2.split("_")[2]);
@@ -151,7 +163,7 @@ class Betwindycity {
                     const limit = limits?.s;
                     const keyName = `${sport} [#${index}] ${team2} ${period} spread`;
                     const suffix = `${points == 0 ? "PK" : points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.sprd2, points, odds, limit, suffix, order: matchOrder + 3 };
+                    this.matches[keyName] = { ...base, sel: gm.sprd2, points, odds, limit, suffix, order: order + 3 };
                 }
                 if (gm.tto1) {
                     const points = Number(gm.tto1.split("_")[2]);
@@ -159,7 +171,7 @@ class Betwindycity {
                     const limit = limits?.tt;
                     const keyName = `${sport} [#${index}] ${team1} ${period} tto`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.tto1, points: -points, odds, limit, suffix, order: matchOrder + 4 };
+                    this.matches[keyName] = { ...base, sel: gm.tto1, points: -points, odds, limit, suffix, order: order + 4 };
                 }
                 if (gm.ttu1) {
                     const points = Number(gm.ttu1.split("_")[2]);
@@ -167,7 +179,7 @@ class Betwindycity {
                     const limit = limits?.tt;
                     const keyName = `${sport} [#${index}] ${team1} ${period} ttu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.ttu1, points, odds, limit, suffix, order: matchOrder + 5 };
+                    this.matches[keyName] = { ...base, sel: gm.ttu1, points, odds, limit, suffix, order: order + 5 };
                 }
                 if (gm.tto2) {
                     const points = Number(gm.tto2.split("_")[2]);
@@ -175,7 +187,7 @@ class Betwindycity {
                     const limit = limits?.tt;
                     const keyName = `${sport} [#${index}] ${team2} ${period} tto`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.tto2, points: -points, odds, limit, suffix, order: matchOrder + 4 };
+                    this.matches[keyName] = { ...base, sel: gm.tto2, points: -points, odds, limit, suffix, order: order + 4 };
                 }
                 if (gm.ttu2) {
                     const points = Number(gm.ttu2.split("_")[2]);
@@ -183,14 +195,14 @@ class Betwindycity {
                     const limit = limits?.tt;
                     const keyName = `${sport} [#${index}] ${team2} ${period} ttu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.ttu2, points, odds, limit, suffix, order: matchOrder + 5 };
+                    this.matches[keyName] = { ...base, sel: gm.ttu2, points, odds, limit, suffix, order: order + 5 };
                 }
                 if (gm.draw) {
                     const odds = Number(gm.draw.split("_")[3]);
                     const limit = limits?.m;
                     const keyName = `${sport} [#${index}] ${team1} : ${team2} draw`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.draw, points: 0, odds, limit, suffix, order: matchOrder + 6 };
+                    this.matches[keyName] = { ...base, sel: gm.draw, points: 0, odds, limit, suffix, order: order + 6 };
                 }
                 if (gm.to) {
                     const points = Number(gm.to.split("_")[2]);
@@ -199,7 +211,7 @@ class Betwindycity {
                     const title = gm.team1 == gm.team2 ? team1 : `${team1} : ${team2}`;
                     const keyName = `${sport} [#${index}] ${title} to`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.to, points: -points, odds, limit, suffix, order: matchOrder + 7 };
+                    this.matches[keyName] = { ...base, sel: gm.to, points: -points, odds, limit, suffix, order: order + 7 };
                 }
                 if (gm.tu) {
                     const points = Number(gm.tu.split("_")[2]);
@@ -208,7 +220,7 @@ class Betwindycity {
                     const title = gm.team1 == gm.team2 ? team1 : `${team1} : ${team2}`;
                     const keyName = `${sport} [#${index}] ${title} tu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.tu, points, odds, limit, suffix, order: matchOrder + 8 };
+                    this.matches[keyName] = { ...base, sel: gm.tu, points, odds, limit, suffix, order: order + 8 };
                 }
             }
             

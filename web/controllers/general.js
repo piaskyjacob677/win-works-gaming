@@ -25,8 +25,7 @@ class GeneralCtr {
                 services[serviceName] = JSON.parse(matches);
             }
             const teams = filterEvents(req.query.search, services);
-            res.send(teams
-                .slice(0, 50))
+            res.send(teams)
         })(req, res, next)
     }
     async bet(req, res, next) {

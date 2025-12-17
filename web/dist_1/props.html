@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WinWorks Automation - Props Board</title>
+    <link rel="stylesheet" href="winworks-theme.css">
+    <style>
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: 40px 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        .header { 
+            margin-bottom: 40px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 24px;
+            animation: slideDown 0.6s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .settings-bar { 
+            display: flex; 
+            gap: 24px; 
+            padding: 24px; 
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        
+        .setting-group { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px;
+            min-width: 140px;
+        }
+        
+        .filter-bar { 
+            margin-bottom: 30px; 
+            display: flex; 
+            gap: 16px;
+            animation: fadeInUp 0.8s ease-out;
+            animation-delay: 0.2s;
+            animation-fill-mode: both;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        input[type="text"].search-box { 
+            flex: 1;
+            font-size: 1.1rem;
+        }
+        
+        .lines-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); 
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .lines-grid .card {
+            animation: cardFadeIn 0.6s ease-out;
+            animation-fill-mode: both;
+        }
+        
+        .lines-grid .card:nth-child(1) { animation-delay: 0.05s; }
+        .lines-grid .card:nth-child(2) { animation-delay: 0.1s; }
+        .lines-grid .card:nth-child(3) { animation-delay: 0.15s; }
+        .lines-grid .card:nth-child(4) { animation-delay: 0.2s; }
+        .lines-grid .card:nth-child(5) { animation-delay: 0.25s; }
+        .lines-grid .card:nth-child(6) { animation-delay: 0.3s; }
+        
+        @keyframes cardFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        .card-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start;
+            padding-bottom: 14px; 
+            margin-bottom: 14px; 
+        }
+        
+        .line-item { 
+            font-size: 0.95em; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            margin-top: 12px;
+        }
+        
+        .match-results { 
+            margin-top: 40px; 
+            padding-top: 40px; 
+            border-top: 2px solid rgba(99, 102, 241, 0.2);
+        }
+        
+        /* Info box */
+        .info-box {
+            text-align: center;
+            padding: 60px 20px;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(20px);
+            border: 2px dashed rgba(99, 102, 241, 0.3);
+            border-radius: 20px;
+            margin-top: 40px;
+            animation: pulse 3s ease-in-out infinite;
+        }
+        
+        .info-box strong {
+            color: #3b82f6;
+            font-size: 1.1em;
+        }
+        
+        /* Modal content area */
+        #modalContent {
+            margin: 20px 0;
+        }
+        
+        /* Modal buttons container */
+        #confirmModal button {
+            min-width: 120px;
+        }
+        
+        /* Remove button in modal */
+        button[onclick^="removeMatch"] {
+            background: rgba(239, 68, 68, 0.2) !important;
+            border: 1px solid rgba(239, 68, 68, 0.4) !important;
+            color: #ef4444 !important;
+            width: 32px !important;
+            height: 32px !important;
+            min-width: 32px !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 50% !important;
+            font-weight: 700 !important;
+            font-size: 1.2rem !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        button[onclick^="removeMatch"]:hover {
+            background: rgba(239, 68, 68, 0.4) !important;
+            transform: rotate(90deg) scale(1.1) !important;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; cursor: pointer;" onclick="redirectToDashboard()">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #3b82f6;">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                <h1 style="transition: all 0.3s;">WinWorks Props Board</h1>
+            </div>
+            <p style="color: #9ca3af; font-size: 1.1rem; margin-bottom: 24px;">Master Bet - Automatically place bets across all platforms in one click</p>
+            
+            <div class="settings-bar">
+                <div class="setting-group">
+                    <label>💰 Master Bet Amount</label>
+                    <input type="number" id="masterAmount" value="100" placeholder="100">
+                </div>
+                <div class="setting-group">
+                    <label>📊 Point Tolerance</label>
+                    <input type="number" id="tolPoints" value="0.5" step="0.5" placeholder="0.5">
+                </div>
+                <div class="setting-group">
+                    <label>💵 Price Tolerance (Cents)</label>
+                    <input type="number" id="tolPrice" value="20" step="5" placeholder="20">
+                </div>
+            </div>
+        </div>
+        
+        <div class="filter-bar">
+            <input type="text" id="search" class="search-box" placeholder="🔍 Start typing to search (e.g. 'Lakers', 'Patrick Mahomes')..." oninput="debouncedSearch()" autofocus>
+            <button class="btn" onclick="doSearch()">🚀 Search</button>
+        </div>
+
+        <div id="results-area">
+            <div class="info-box">
+                <div style="font-size: 3rem; margin-bottom: 20px;">🎯</div>
+                <div style="font-size: 1.2rem; line-height: 2; color: #cbd5e1;">
+                    <div style="margin-bottom: 12px;">1️⃣ Set your <strong>Master Amount</strong> and Tolerances above</div>
+                    <div style="margin-bottom: 12px;">2️⃣ Search for a team or player below</div>
+                    <div>3️⃣ <strong>Click any result</strong> to auto-match and bet across ALL platforms!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Confirmation -->
+    <div id="confirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); color: white; padding:30px; border-radius:12px; max-width:600px; width:90%; max-height:90vh; overflow-y:auto;">
+            <h2 style="color: white;">Confirm Master Bet</h2>
+            <div id="modalContent"></div>
+            <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn" style="background:#ccc; color:black" onclick="closeModal()">Cancel</button>
+                <button class="btn" style="background:#2e7d32" onclick="executeMasterBet()">CONFIRM & BET</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMatches = [];
+        let searchTimeout = null;
+        
+        // Define the ngrok dashboard URL
+        const DASHBOARD_URL = 'https://semiemotional-liza-cadgy.ngrok-free.dev/dashboard';
+        
+        function redirectToDashboard() {
+            window.location.href = DASHBOARD_URL;
+        }
+
+        function debouncedSearch() {
+            const term = document.getElementById('search').value.trim();
+            if (searchTimeout) clearTimeout(searchTimeout);
+            
+            if (term.length < 2) {
+                document.getElementById('results-area').innerHTML = '';
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                doSearch(true);
+            }, 300); // 300ms debounce
+        }
+
+        async function doSearch(isAuto = false) {
+            const term = document.getElementById('search').value.trim();
+            if (term.length < 2) {
+                if (!isAuto) alert("Please enter at least 2 characters");
+                return;
+            }
+            
+            const container = document.getElementById('results-area');
+            // Don't wipe content immediately on auto-search to prevent flicker, maybe just a small indicator?
+            // Or just let it replace. 
+            if (!isAuto) container.innerHTML = '<div style="text-align:center; margin-top:50px">Searching...</div>';
+            
+            try {
+                const res = await fetch(`/api/general/props/search?q=${encodeURIComponent(term)}`);
+                const rawProps = await res.json();
+                renderResults(rawProps);
+            } catch (e) {
+                container.innerHTML = `<div style="color:red; text-align:center">Error: ${e.message}</div>`;
+            }
+        }
+
+        function renderResults(props) {
+            const container = document.getElementById('results-area');
+            if (props.length === 0) {
+                container.innerHTML = '<div style="text-align:center; margin-top:50px">No results found.</div>';
+                return;
+            }
+            
+            container.innerHTML = `<h3 style="margin-bottom:15px">Select a bet to Auto-Match:</h3>` + 
+            '<div class="lines-grid">' +
+            props.map(p => `
+                <div class="card" onclick='initiateMasterBet(${JSON.stringify(p).replace(/\\/g, "\\\\").replace(/'/g, "\\'")})'>
+                    <div class="card-header">
+                        <div>
+                            <div class="player-name">${p.title}</div>
+                            <div class="market-info">${p.desc || ''}</div>
+                        </div>
+                        <div class="service-tag">${p.service || p.serviceName}</div>
+                    </div>
+                    <div class="line-item" style="border:none; padding:0;">
+                        <span><strong>Line:</strong> ${p.points ? p.points : ''}</span>
+                        <span class="odds">${p.odds > 0 ? '+' : ''}${p.odds}</span>
+                    </div>
+                </div>
+            `).join('') + '</div>';
+        }
+
+        async function initiateMasterBet(targetProp) {
+            // 1. Get Settings
+            const masterAmount = parseFloat(document.getElementById('masterAmount').value) || 100;
+            const tolPoints = parseFloat(document.getElementById('tolPoints').value) || 0.5;
+            const tolPrice = parseFloat(document.getElementById('tolPrice').value) || 20;
+
+            // 2. Show Loading Modal
+            const modal = document.getElementById('confirmModal');
+            const content = document.getElementById('modalContent');
+            modal.style.display = 'flex';
+            content.innerHTML = '<div style="text-align:center"><h3>🔍 Scanning all books for matches...</h3></div>';
+
+            // Store global references for re-rendering
+            window.targetPropGlobal = targetProp;
+            window.masterAmountGlobal = masterAmount;
+
+            try {
+                // 3. Call Find Matches Endpoint
+                const res = await fetch('/api/general/props/find_matches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        targetProp, 
+                        tolerances: { points: tolPoints, price: tolPrice }
+                    })
+                });
+                
+                const text = await res.text();
+                try {
+                    currentMatches = JSON.parse(text);
+                } catch (e) {
+                    throw new Error("Server Error (Not JSON): " + text.substring(0, 100) + "...");
+                }
+                
+                renderConfirmationModal();
+
+            } catch (e) {
+                content.innerHTML = `<div style="color:red; text-align:center">Error: ${e.message}</div>`;
+            }
+        }
+
+        function removeMatch(index) {
+            currentMatches.splice(index, 1);
+            renderConfirmationModal();
+        }
+
+        function renderConfirmationModal() {
+            const content = document.getElementById('modalContent');
+            const masterAmount = window.masterAmountGlobal;
+            const targetProp = window.targetPropGlobal;
+
+            if (currentMatches.length === 0) {
+                content.innerHTML = '<div style="text-align:center; color:red">No matches found within tolerance (or all removed).</div>';
+                return;
+            }
+
+            content.innerHTML = `
+                <div style="margin-bottom:15px;">
+                    <strong>Master Bet Amount:</strong> $${masterAmount}<br>
+                    <strong>Target:</strong> ${targetProp.title} (${targetProp.points}/${targetProp.odds})
+                </div>
+                <h4>Execution Plan (Best Odds First):</h4>
+                <div style="max-height:300px; overflow-y:auto; border:1px solid #eee; padding:10px; border-radius:4px;">
+                    ${currentMatches.map((m, i) => `
+                        <div style="padding:8px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <span style="font-weight:bold; color:#1976d2">#${i+1} ${m.service}</span><br>
+                                <span style="font-size:0.9em">${m.betslip.title || m.betslip.desc}</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="text-align:right">
+                                    <strong>${m.betslip.points} / ${m.betslip.odds}</strong>
+                                </div>
+                                <button onclick="removeMatch(${i})" style="background:#ffeba0; border:none; cursor:pointer; border-radius:50%; width:24px; height:24px; font-weight:bold; color:#d32f2f; display:flex; align-items:center; justify-content:center;">✕</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="margin-top:10px; color:#666; font-size:0.9em;">
+                    * System will bet max on site #1, then #2, etc., until $${masterAmount} is reached.
+                </div>
+            `;
+        }
+
+        async function executeMasterBet() {
+            const masterAmount = parseFloat(document.getElementById('masterAmount').value) || 100;
+            
+            if (currentMatches.length === 0) return;
+
+            // Prepare Payload
+            // We set the stake of the FIRST betslip to the Master Amount.
+            // The backend handles the waterfall logic.
+            currentMatches[0].betslip.stake = masterAmount;
+
+            const content = document.getElementById('modalContent');
+            content.innerHTML = '<div style="text-align:center"><h3>🚀 Executing Bets...</h3></div>';
+
+            try {
+                const res = await fetch('/api/general/confirmbet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        input: `Master Bet: ${currentMatches[0].betslip.title}`, 
+                        betslips: currentMatches 
+                    })
+                });
+                
+                const result = await res.json();
+                
+                // Render Result
+                content.innerHTML = `
+                    <h3 style="color:#2e7d32">Execution Complete!</h3>
+                    <div style="max-height:300px; overflow-y:auto;">
+                        ${result.map(r => `
+                            <div style="padding:8px; border-bottom:1px solid #eee; ${r.stake ? 'color:green' : 'color:red'}">
+                                <strong>${r.service}:</strong> ${r.stake ? '$' + r.stake + ' Placed' : 'Failed: ' + r.msg}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                // Hide Confirm Button
+                document.querySelector('#confirmModal .btn[onclick="executeMasterBet()"]').style.display = 'none';
+                document.querySelector('#confirmModal .btn[onclick="closeModal()"]').innerText = 'Close';
+
+            } catch (e) {
+                content.innerHTML = `<div style="color:red; text-align:center">Error: ${e.message}</div>`;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            // Reset button state if needed
+            document.querySelector('#confirmModal .btn[onclick="executeMasterBet()"]').style.display = 'inline-block';
+            document.querySelector('#confirmModal .btn[onclick="closeModal()"]').innerText = 'Cancel';
+        }
+        
+        document.getElementById('search').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') doSearch();
+        });
+    </script>
+</body>
+</html>

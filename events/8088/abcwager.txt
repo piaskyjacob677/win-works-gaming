@@ -1,0 +1,208 @@
+NFL [1483] Miami Dolphins 1h ml
+NFL [1484] Pittsburgh Steelers 1h ml
+NFL [1483] Miami Dolphins 1h spread
+NFL [1484] Pittsburgh Steelers 1h spread
+NFL [1483] Miami Dolphins : Pittsburgh Steelers 1h to
+NFL [1483] Miami Dolphins : Pittsburgh Steelers 1h tu
+NFL [78101] Miami Dolphins 1h tto
+NFL [78102] Miami Dolphins 1h ttu
+NFL [78103] Pittsburgh Steelers 1h tto
+NFL [78104] Pittsburgh Steelers 1h ttu
+NFL [3483097] Darren Waller Longest Reception ft to
+NFL [3483097] Darren Waller Longest Reception ft tu
+NFL [3483101] DK Metcalf Longest Reception ft to
+NFL [3483101] DK Metcalf Longest Reception ft tu
+NFL [3483107] Jaylen Warren Longest Reception ft to
+NFL [3483107] Jaylen Warren Longest Reception ft tu
+NFL [3483113] Malik Washington Longest Reception ft to
+NFL [3483113] Malik Washington Longest Reception ft tu
+NFL [3483119] Tua Tagovailoa Longest Passing Completion ft to
+NFL [3483119] Tua Tagovailoa Longest Passing Completion ft tu
+NFL [3483123] Jaylen Warren Longest Rush ft to
+NFL [3483123] Jaylen Warren Longest Rush ft tu
+NFL [3483129] Aaron Rodgers Passing Attempts ft to
+NFL [3483129] Aaron Rodgers Passing Attempts ft tu
+NFL [3483133] Aaron Rodgers Passing Yards ft to
+NFL [3483133] Aaron Rodgers Passing Yards ft tu
+NFL [3483137] Aaron Rodgers Passing Touchdowns ft to
+NFL [3483137] Aaron Rodgers Passing Touchdowns ft tu
+NFL [3483141] Aaron Rodgers Interceptions Thrown ft to
+NFL [3483141] Aaron Rodgers Interceptions Thrown ft tu
+NFL [3483145] Aaron Rodgers Passing Completions ft to
+NFL [3483145] Aaron Rodgers Passing Completions ft tu
+NFL [3483149] Calvin Austin III Receiving Yards ft to
+NFL [3483149] Calvin Austin III Receiving Yards ft tu
+NFL [3483153] Darren Waller Receiving Yards ft to
+NFL [3483153] Darren Waller Receiving Yards ft tu
+NFL [3483157] DK Metcalf Receiving Yards ft to
+NFL [3483157] DK Metcalf Receiving Yards ft tu
+NFL [3483161] Jaylen Waddle Receiving Yards ft to
+NFL [3483161] Jaylen Waddle Receiving Yards ft tu
+NFL [3483167] Kenneth Gainwell Receiving Yards ft to
+NFL [3483167] Kenneth Gainwell Receiving Yards ft tu
+NFL [3483171] Pat Freiermuth Receiving Yards ft to
+NFL [3483171] Pat Freiermuth Receiving Yards ft tu
+NFL [3483179] DeVon Achane Receptions ft to
+NFL [3483179] DeVon Achane Receptions ft tu
+NFL [3483185] Jaylen Waddle Receptions ft to
+NFL [3483185] Jaylen Waddle Receptions ft tu
+NFL [3483191] Kenneth Gainwell Receptions ft to
+NFL [3483191] Kenneth Gainwell Receptions ft tu
+NFL [3483195] Pat Freiermuth Receptions ft to
+NFL [3483195] Pat Freiermuth Receptions ft tu
+NFL [3483201] Jaylen Warren Rushing Yards ft to
+NFL [3483201] Jaylen Warren Rushing Yards ft tu
+NFL [3483205] Kenneth Gainwell Rushing Yards ft to
+NFL [3483205] Kenneth Gainwell Rushing Yards ft tu
+NFL [3483211] Jaylen Warren Rushing Attempts ft to
+NFL [3483211] Jaylen Warren Rushing Attempts ft tu
+NFL [3483215] Riley Patterson Kicking Points ft to
+NFL [3483215] Riley Patterson Kicking Points ft tu
+NFL [3483219] Jalen Ramsey Tackles + Assists ft to
+NFL [3483219] Jalen Ramsey Tackles + Assists ft tu
+NFL [3483223] Jordyn Brooks Tackles + Assists ft to
+NFL [3483223] Jordyn Brooks Tackles + Assists ft tu
+NFL [3483227] Patrick Queen Tackles + Assists ft to
+NFL [3483227] Patrick Queen Tackles + Assists ft tu
+NFL [3483231] Ashtyn Davis Tackles ft to
+NFL [3483231] Ashtyn Davis Tackles ft tu
+NFL [3483235] Joey Porter Jr. Tackles ft to
+NFL [3483235] Joey Porter Jr. Tackles ft tu
+NFL [3483239] Minkah Fitzpatrick Tackles ft to
+NFL [3483239] Minkah Fitzpatrick Tackles ft tu
+NFL [3483243] Tyrel Dodson Tackles ft to
+NFL [3483243] Tyrel Dodson Tackles ft tu
+NFL [3483247] Jalen Ramsey Assists ft to
+NFL [3483247] Jalen Ramsey Assists ft tu
+NFL [3483251] Jordyn Brooks Assists ft to
+NFL [3483251] Jordyn Brooks Assists ft tu
+NFL [3483255] Patrick Queen Assists ft to
+NFL [3483255] Patrick Queen Assists ft tu
+NFL [3483099] DeVon Achane Longest Reception ft to
+NFL [3483099] DeVon Achane Longest Reception ft tu
+NFL [3483105] Jaylen Waddle Longest Reception ft to
+NFL [3483105] Jaylen Waddle Longest Reception ft tu
+NFL [3483111] Kenneth Gainwell Longest Reception ft to
+NFL [3483111] Kenneth Gainwell Longest Reception ft tu
+NFL [3483117] Aaron Rodgers Longest Passing Completion ft to
+NFL [3483117] Aaron Rodgers Longest Passing Completion ft tu
+NFL [3483121] DeVon Achane Longest Rush ft to
+NFL [3483121] DeVon Achane Longest Rush ft tu
+NFL [3483127] Kenneth Gainwell Longest Rush ft to
+NFL [3483127] Kenneth Gainwell Longest Rush ft tu
+NFL [3483131] Tua Tagovailoa Passing Attempts ft to
+NFL [3483131] Tua Tagovailoa Passing Attempts ft tu
+NFL [3483135] Tua Tagovailoa Passing Yards ft to
+NFL [3483135] Tua Tagovailoa Passing Yards ft tu
+NFL [3483139] Tua Tagovailoa Passing Touchdowns ft to
+NFL [3483139] Tua Tagovailoa Passing Touchdowns ft tu
+NFL [3483143] Tua Tagovailoa Interceptions Thrown ft to
+NFL [3483143] Tua Tagovailoa Interceptions Thrown ft tu
+NFL [3483147] Tua Tagovailoa Passing Completions ft to
+NFL [3483147] Tua Tagovailoa Passing Completions ft tu
+NFL [3483151] Darnell Washington Receiving Yards ft to
+NFL [3483151] Darnell Washington Receiving Yards ft tu
+NFL [3483155] DeVon Achane Receiving Yards ft to
+NFL [3483155] DeVon Achane Receiving Yards ft tu
+NFL [3483159] Greg Dulcich Receiving Yards ft to
+NFL [3483159] Greg Dulcich Receiving Yards ft tu
+NFL [3483163] Jaylen Warren Receiving Yards ft to
+NFL [3483163] Jaylen Warren Receiving Yards ft tu
+NFL [3483169] Malik Washington Receiving Yards ft to
+NFL [3483169] Malik Washington Receiving Yards ft tu
+NFL [3483177] Darren Waller Receptions ft to
+NFL [3483177] Darren Waller Receptions ft tu
+NFL [3483181] DK Metcalf Receptions ft to
+NFL [3483181] DK Metcalf Receptions ft tu
+NFL [3483187] Jaylen Warren Receptions ft to
+NFL [3483187] Jaylen Warren Receptions ft tu
+NFL [3483193] Malik Washington Receptions ft to
+NFL [3483193] Malik Washington Receptions ft tu
+NFL [3483199] DeVon Achane Rushing Yards ft to
+NFL [3483199] DeVon Achane Rushing Yards ft tu
+NFL [3483203] Jaylen Wright Rushing Yards ft to
+NFL [3483203] Jaylen Wright Rushing Yards ft tu
+NFL [3483209] DeVon Achane Rushing Attempts ft to
+NFL [3483209] DeVon Achane Rushing Attempts ft tu
+NFL [3483213] Chris Boswell Kicking Points ft to
+NFL [3483213] Chris Boswell Kicking Points ft tu
+NFL [3483217] Ashtyn Davis Tackles + Assists ft to
+NFL [3483217] Ashtyn Davis Tackles + Assists ft tu
+NFL [3483221] Joey Porter Jr. Tackles + Assists ft to
+NFL [3483221] Joey Porter Jr. Tackles + Assists ft tu
+NFL [3483225] Minkah Fitzpatrick Tackles + Assists ft to
+NFL [3483225] Minkah Fitzpatrick Tackles + Assists ft tu
+NFL [3483229] Tyrel Dodson Tackles + Assists ft to
+NFL [3483229] Tyrel Dodson Tackles + Assists ft tu
+NFL [3483233] Jalen Ramsey Tackles ft to
+NFL [3483233] Jalen Ramsey Tackles ft tu
+NFL [3483237] Jordyn Brooks Tackles ft to
+NFL [3483237] Jordyn Brooks Tackles ft tu
+NFL [3483241] Patrick Queen Tackles ft to
+NFL [3483241] Patrick Queen Tackles ft tu
+NFL [3483245] Ashtyn Davis Assists ft to
+NFL [3483245] Ashtyn Davis Assists ft tu
+NFL [3483249] Joey Porter Jr. Assists ft to
+NFL [3483249] Joey Porter Jr. Assists ft tu
+NFL [3483253] Minkah Fitzpatrick Assists ft to
+NFL [3483253] Minkah Fitzpatrick Assists ft tu
+NFL [3483257] Tyrel Dodson Assists ft to
+NFL [3483257] Tyrel Dodson Assists ft tu
+CFB [1199] TROY STATE 1h ml
+CFB [1200] JACKSONVILLE STATE 1h ml
+CFB [1199] TROY STATE 1h spread
+CFB [1200] JACKSONVILLE STATE 1h spread
+CFB [1199] TROY STATE : JACKSONVILLE STATE 1h to
+CFB [1199] TROY STATE : JACKSONVILLE STATE 1h tu
+CFB [1203] LOUISIANA LAFAYETTE 1h ml
+CFB [1204] DELAWARE 1h ml
+CFB [1203] LOUISIANA LAFAYETTE 1h spread
+CFB [1204] DELAWARE 1h spread
+CFB [1203] LOUISIANA LAFAYETTE : DELAWARE 1h to
+CFB [1203] LOUISIANA LAFAYETTE : DELAWARE 1h tu
+CFB [19] KENNESAW STATE 1h ml
+CFB [11] WESTERN MICHIGAN 1h ml
+CFB [19] KENNESAW STATE 1h spread
+CFB [11] WESTERN MICHIGAN 1h spread
+CFB [19] KENNESAW STATE : WESTERN MICHIGAN 1h to
+CFB [19] KENNESAW STATE : WESTERN MICHIGAN 1h tu
+CFB [1295] ALABAMA 1h ml
+CFB [1296] OKLAHOMA 1h ml
+CFB [1295] ALABAMA 1h spread
+CFB [1296] OKLAHOMA 1h spread
+CFB [1295] ALABAMA : OKLAHOMA 1h to
+CFB [1295] ALABAMA : OKLAHOMA 1h tu
+CFB [1293] TULANE 1h ml
+CFB [1294] MISSISSIPPI 1h ml
+CFB [1293] TULANE 1h spread
+CFB [1294] MISSISSIPPI 1h spread
+CFB [1293] TULANE : MISSISSIPPI 1h to
+CFB [1293] TULANE : MISSISSIPPI 1h tu
+CFB [1201] OLD DOMINION 1h ml
+CFB [1202] SOUTH FLORIDA 1h ml
+CFB [1201] OLD DOMINION 1h spread
+CFB [1202] SOUTH FLORIDA 1h spread
+CFB [1201] OLD DOMINION : SOUTH FLORIDA 1h to
+CFB [1201] OLD DOMINION : SOUTH FLORIDA 1h tu
+CFB [1301] MISSOURI STATE 1h spread
+CFB [1302] ARKANSAS STATE 1h spread
+CFB [1301] MISSOURI STATE : ARKANSAS STATE 1h to
+CFB [1301] MISSOURI STATE : ARKANSAS STATE 1h tu
+CFB [1207] MEMPHIS 1h ml
+CFB [1208] NC STATE 1h ml
+CFB [1207] MEMPHIS 1h spread
+CFB [1208] NC STATE 1h spread
+CFB [1207] MEMPHIS : NC STATE 1h to
+CFB [1207] MEMPHIS : NC STATE 1h tu
+CFB [1291] JAMES MADISON 1h ml
+CFB [1292] OREGON 1h ml
+CFB [1291] JAMES MADISON 1h spread
+CFB [1292] OREGON 1h spread
+CFB [1291] JAMES MADISON : OREGON 1h to
+CFB [1291] JAMES MADISON : OREGON 1h tu
+CFB [1297] MIAMI FLORIDA 1h ml
+CFB [1298] TEXAS A&M 1h ml
+CFB [1297] MIAMI FLORIDA 1h spread
+CFB [1298] TEXAS A&M 1h spread
+CFB [1297] MIAMI FLORIDA : TEXAS A&M 1h to
+CFB [1297] MIAMI FLORIDA : TEXAS A&M 1h tu

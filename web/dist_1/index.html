@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/bet/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WinWorks Automation - Live Bets</title>
+    <script type="module" crossorigin src="/bet/assets/index-CF6S_hkN.js"></script>
+    <link rel="stylesheet" crossorigin href="/bet/assets/index-BVBKyD58.css">
+    <link rel="stylesheet" href="/bet/winworks-theme.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <script>
+      // Redirect to frontend dashboard when clicking Sports Betting header
+      document.addEventListener('DOMContentLoaded', function() {
+        // Define the ngrok dashboard URL
+        const DASHBOARD_URL = 'https://semiemotional-liza-cadgy.ngrok-free.dev/dashboard';
+        
+        // Override the dashboard navigation
+        const originalPushState = history.pushState;
+        history.pushState = function(state, title, url) {
+          if (url && url.includes('/dashboard')) {
+            window.location.href = DASHBOARD_URL;
+            return;
+          }
+          return originalPushState.apply(history, arguments);
+        };
+        
+        // Also handle direct clicks on elements with cursor-pointer class
+        setTimeout(() => {
+          const headerElements = document.querySelectorAll('.cursor-pointer');
+          headerElements.forEach(el => {
+            const text = el.textContent || el.innerText;
+            if (text.includes('Sports Betting')) {
+              el.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.location.href = DASHBOARD_URL;
+              }, true);
+            }
+          });
+        }, 500);
+      });
+    </script>
+  </body>
+</html>

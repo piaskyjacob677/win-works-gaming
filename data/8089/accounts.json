@@ -13,6 +13,12 @@
       "password": "123",
       "user_max": 95,
       "service": "action"
+    },
+    {
+      "service": "action",
+      "username": "wwplayer2",
+      "password": "123",
+      "user_max": 0
     }
   ],
   "betwindycity": [
@@ -22,13 +28,7 @@
       "user_max": 95
     }
   ],
-  "fesster": [
-    {
-      "username": "az1601",
-      "password": "bmw",
-      "user_max": 95
-    }
-  ],
+  "fesster": [],
   "1bv": [
     {
       "username": "wp5023",

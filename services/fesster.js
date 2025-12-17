@@ -1,6 +1,6 @@
 const fs = require("fs");
 const fetch = require("node-fetch");
-const { filterLeague, getPeriodOrder, prettyLog, getFullName, cleanTeamName, toleranceCheck } = require("../utils/utils.js");
+const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { JSDOM } = require("jsdom");
 const { resolveApp } = require("../web/utils/path.js");
 
@@ -45,7 +45,7 @@ class Fesster {
                 for (const league of leagues) {
                     const id = league.querySelector("input").getAttribute("value");
                     let desc = league.textContent.replace(/\n|\s+/g, " ").replace("  ", " ").trim();
-                    const result = filterLeague(sport, desc);
+                    const result = leagueNameCleaner(sport, desc);
                     if (!result) continue;
                     leagueList.push({ id, ...result })
                 }
@@ -58,7 +58,7 @@ class Fesster {
     }
     async getLeagueMatches(league, account) {
         try {
-            const { id, sport, desc, order } = league;
+            const { id, sport, desc } = league;
 
             const response = await fetch("https://m.blue987.com/wager/CreateSports.aspx?WT=0", {
                 "headers": {
@@ -115,61 +115,73 @@ class Fesster {
             });
 
             for (const gm of games) {
-                const team1_full = getFullName(sport, cleanTeamName(gm.team1));
-                const team2_full = getFullName(sport, cleanTeamName(gm.team2));
-                const team1 = team1_full? team1_full : gm.team1;
-                const team2 = team2_full? team2_full : gm.team2;
+                let team1 = gm.team1;
+                let team2 = gm.team2;
+                let is_props = new RegExp("player props", "i").test(desc);
+                if (is_props) {
+                    if (new RegExp("most", "i").test(team1 + " " + team2)) continue;
+                    
+                    team1 = playerPropsCleaner(sport, team1);
+                    team2 = playerPropsCleaner(sport, team2);
+                }
+                else {
+                    team1 = teamNameCleaner(team1);
+                    team2 = teamNameCleaner(team2);
+                    team1 = getFullName(sport, team1) || team1;
+                    team2 = getFullName(sport, team2) || team2;
+                }
 
-                const { period, matchOrder } = getPeriodOrder(sport + " " + desc + " " + gm.team1 + " " + gm.team2, order);
+                const period = getPeriod(sport + " " + desc + " " + gm.team1 + " " + gm.team2);
+                const order = period.startsWith("1") ? 1000 : period.startsWith("2") ? 2000 : period.startsWith("3") ? 3000 : period.startsWith("4") ? 4000 : 0;
 
-                const base = { sport, desc, idlg: id, hasRotNumber: this.hasRotNumber };
+                const base = { sport, desc, idlg: id, hasRotNumber: this.hasRotNumber, is_props };
                 const isTT = `${gm.team1} ${gm.team2}`.toLowerCase().includes("total");
 
                 if (gm.ml1) {
                     const odds = Number(gm.ml1.split("_")[3]);
                     const keyName = `${sport} [${gm.rot1}] ${team1} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.ml1, points: 0, odds, suffix, order: matchOrder + 0 };
+                    this.matches[keyName] = { ...base, sel: gm.ml1, points: 0, odds, suffix, order: order + 0 };
                 }
                 if (gm.ml2) {
                     const odds = Number(gm.ml2.split("_")[3]);
                     const keyName = `${sport} [${gm.rot2}] ${team2} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.ml2, points: 0, odds, suffix, order: matchOrder + 1 };
+                    this.matches[keyName] = { ...base, sel: gm.ml2, points: 0, odds, suffix, order: order + 1 };
                 }
                 if (gm.sprd1) {
                     const points = Number(gm.sprd1.split("_")[2]);
                     const odds = Number(gm.sprd1.split("_")[3]);
                     const keyName = `${sport} [${gm.rot1}] ${team1} ${period} spread`;
                     const suffix = `${points == 0 ? "PK" : points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.sprd1, points, odds, suffix, order: matchOrder + 2 };
+                    this.matches[keyName] = { ...base, sel: gm.sprd1, points, odds, suffix, order: order + 2 };
                 }
                 if (gm.sprd2) {
                     const points = Number(gm.sprd2.split("_")[2]);
                     const odds = Number(gm.sprd2.split("_")[3]);
                     const keyName = `${sport} [${gm.rot2}] ${team2} ${period} spread`;
                     const suffix = `${points == 0 ? "PK" : points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.sprd2, points, odds, suffix, order: matchOrder + 3 };
+                    this.matches[keyName] = { ...base, sel: gm.sprd2, points, odds, suffix, order: order + 3 };
                 }
                 if (gm.to && isTT) {
                     const points = Number(gm.to.split("_")[2]);
                     const odds = Number(gm.to.split("_")[3]);
                     const keyName = `${sport} [${gm.rot2}] ${team2} ${period} tto`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.to, points, odds, suffix, order: matchOrder + 4 };
+                    this.matches[keyName] = { ...base, sel: gm.to, points, odds, suffix, order: order + 4 };
                 }
                 if (gm.tu && isTT) {
                     const points = Number(gm.tu.split("_")[2]);
                     const odds = Number(gm.tu.split("_")[3]);
                     const keyName = `${sport} [${gm.rot2}] ${team2} ${period} ttu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.tu, points, odds, suffix, order: matchOrder + 5 };
+                    this.matches[keyName] = { ...base, sel: gm.tu, points, odds, suffix, order: order + 5 };
                 }                
                 if (gm.draw) {
                     const odds = Number(gm.draw.split("_")[3]);
                     const keyName = `${sport} [${gm.rot1}] ${team1} : ${team2} ${period} draw`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.draw, points: 0, odds, suffix, order: matchOrder + 6 };
+                    this.matches[keyName] = { ...base, sel: gm.draw, points: 0, odds, suffix, order: order + 6 };
                 }
                 if (gm.to && !isTT) {
                     const points = Number(gm.to.split("_")[2]);
@@ -177,7 +189,7 @@ class Fesster {
                     const title = gm.team1 == gm.team2? `[${gm.rot1}] ${team1}` : `[${gm.rot1}] ${team1} : ${team2}`;
                     const keyName = `${sport} ${title} ${period} to`;
                     const suffix = `${-points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.to, points, odds, suffix, order: matchOrder + 7 };
+                    this.matches[keyName] = { ...base, sel: gm.to, points, odds, suffix, order: order + 7 };
                 }
                 if (gm.tu && !isTT) {
                     const points = Number(gm.tu.split("_")[2]);
@@ -185,7 +197,7 @@ class Fesster {
                     const title = gm.team1 == gm.team2? `[${gm.rot1}] ${team1}` : `[${gm.rot1}] ${team1} : ${team2}`;
                     const keyName = `${sport} ${title} ${period} tu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, sel: gm.tu, points, odds, suffix, order: matchOrder + 8 };
+                    this.matches[keyName] = { ...base, sel: gm.tu, points, odds, suffix, order: order + 8 };
                 }
             }
 

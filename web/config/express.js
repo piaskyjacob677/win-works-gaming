@@ -7,6 +7,13 @@ module.exports = (service) => {
     const express = require('express');
     const app = express();
     app.use(cors({ origin: /./, credentials: true }));
+    
+    // Allow iframe embedding
+    app.use((req, res, next) => {
+        res.removeHeader('X-Frame-Options');
+        res.setHeader('X-Frame-Options', 'ALLOWALL');
+        next();
+    });
     app.use(express.json({ limit: "100mb" }));
     app.use(express.urlencoded({ extended: true }));
     app.use(morgan());

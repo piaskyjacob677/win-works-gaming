@@ -1,6 +1,6 @@
 const fs = require("fs");
 const fetch = require("node-fetch");
-const { filterLeague, getPeriodOrder, prettyLog, getFullName, cleanTeamName, toleranceCheck } = require("../utils/utils.js");
+const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { resolveApp } = require("../web/utils/path.js");
 
 class Godds {
@@ -41,7 +41,7 @@ class Godds {
                 for (const league of group.Leagues) {
                     const id = league.LeagueId;
                     const sportId = league.SportId;
-                    const result = filterLeague(sportId, league.LeagueDescription);
+                    const result = leagueNameCleaner(sportId, league.LeagueDescription);
                     if (!result) continue;
                     leagues.push({ id, sportId, ...result })
                 }
@@ -54,7 +54,7 @@ class Godds {
     }
     async getLeagueMatches(league, playerToken) {
         try {
-            const { id, sportId, sport, desc, order } = league;
+            const { id, sportId, sport, desc } = league;
 
             const body = `leagueId=${id}&loadAgentLines=false&loadDefaultOdds=false&sportId=${sportId}&loadMlbLines=true&loadPropsEvents=false`;
             const response = await fetch(`https://gotocasino.ag/Actions/api/Event/GetEvent?${body}`, {
@@ -84,97 +84,109 @@ class Godds {
             for (const gm of tntGames) {
                 games.push(...gm.PARTICIPANTS);
             }
-            
+
             for (const gm of games) {
-                const team1_full = getFullName(sport, cleanTeamName(gm.VISITOR_TEAM));
-                const team2_full = getFullName(sport, cleanTeamName(gm.HOME_TEAM));
-                const team1 = team1_full? team1_full : gm.VISITOR_TEAM;
-                const team2 = team2_full? team2_full : gm.HOME_TEAM;
-                
-                const { period, matchOrder } = getPeriodOrder(sport + " " + desc + " " + gm.VISITOR_TEAM + " " + gm.HOME_TEAM, order);
-                
-                const base = { sport, desc, idgm: gm.GAME_ID, idgmType: gm.GAME_TYPE_ID, idfgm: gm.FAMILY_GAME, idpgm: gm.PARENT_GAME, hasRotNumber: this.hasRotNumber };
-                const isTT = `${gm.VISITOR_TEAM} ${gm.HOME_TEAM}`.toLowerCase().includes("total goals");
+                let team1 = gm.VISITOR_TEAM;
+                let team2 = gm.HOME_TEAM;
+                let is_props = new RegExp("player props", "i").test(desc);
+                if (is_props) {
+                    if (new RegExp("most", "i").test(team1 + " " + team2)) continue;
+                    
+                    team1 = playerPropsCleaner(sport, team1);
+                    team2 = playerPropsCleaner(sport, team2);
+                }
+                else {
+                    team1 = teamNameCleaner(team1);
+                    team2 = teamNameCleaner(team2);
+                    team1 = getFullName(sport, team1) || team1;
+                    team2 = getFullName(sport, team2) || team2;
+                }
+
+                const period = getPeriod(sport + " " + desc + " " + gm.VISITOR_TEAM + " " + gm.HOME_TEAM);
+                const order = period.startsWith("1") ? 1000 : period.startsWith("2") ? 2000 : period.startsWith("3") ? 3000 : period.startsWith("4") ? 4000 : 0;
+
+                const base = { sport, desc, idgm: gm.GAME_ID, idgmType: gm.GAME_TYPE_ID, idfgm: gm.FAMILY_GAME, idpgm: gm.PARENT_GAME, hasRotNumber: this.hasRotNumber, is_props };
+                const isTT = `${gm.VISITOR_TEAM} ${gm.HOME_TEAM}`.toLowerCase().includes("total");
 
                 if (gm.VISITOR_ODDS) {
                     const odds = Number(gm.VISITOR_ODDS);
                     const keyName = `${sport} [#${id}] ${team1} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.VISITOR_TEAM, idmk: 4, hv: 2, stl: 3, points: 0, odds, suffix, order: matchOrder + 0 };
+                    this.matches[keyName] = { ...base, name: gm.VISITOR_TEAM, idmk: 4, hv: 2, stl: 3, points: 0, odds, suffix, order: order + 0 };
                 }
                 if (gm.HOME_ODDS) {
                     const odds = Number(gm.HOME_ODDS);
                     const keyName = `${sport} [#${id}] ${team2} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.HOME_TEAM, idmk: 5, hv: 1, stl: 3, points: 0, odds, suffix, order: matchOrder + 1 };
+                    this.matches[keyName] = { ...base, name: gm.HOME_TEAM, idmk: 5, hv: 1, stl: 3, points: 0, odds, suffix, order: order + 1 };
                 }
                 if (gm.VISITOR_SPREAD_ODDS) {
                     const points = Number(gm.VISITOR_SPREAD);
                     const odds = Number(gm.VISITOR_SPREAD_ODDS);
                     const keyName = `${sport} [#${id}] ${team1} ${period} spread`;
                     const suffix = `${points == 0 ? "PK" : points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.VISITOR_TEAM, idmk: 0, hv: 2, stl: 2, points, odds, suffix, order: matchOrder + 2 };
+                    this.matches[keyName] = { ...base, name: gm.VISITOR_TEAM, idmk: 0, hv: 2, stl: 2, points, odds, suffix, order: order + 2 };
                 }
                 if (gm.HOME_SPREAD_ODDS) {
                     const points = Number(gm.HOME_SPREAD);
                     const odds = Number(gm.HOME_SPREAD_ODDS);
                     const keyName = `${sport} [#${id}] ${team2} ${period} spread`;
                     const suffix = `${points == 0 ? "PK" : points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.HOME_TEAM, idmk: 1, hv: 1, stl: 2, points, odds, suffix, order: matchOrder + 3 };
-                }       
+                    this.matches[keyName] = { ...base, name: gm.HOME_TEAM, idmk: 1, hv: 1, stl: 2, points, odds, suffix, order: order + 3 };
+                }
                 if (gm.OVER_ODDS && isTT) {
                     const points = Number(gm.TOTAL_OVER);
                     const odds = Number(gm.OVER_ODDS);
                     const keyName = `${sport} [#${id}] ${team2} ${period} tto`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.HOME_TEAM, idmk: 2, hv: 2, stl: 1, points: -points, odds, suffix, order: matchOrder + 4 };
+                    this.matches[keyName] = { ...base, name: gm.HOME_TEAM, idmk: 2, hv: 2, stl: 1, points: -points, odds, suffix, order: order + 4 };
                 }
                 if (gm.UNDER_ODDS && isTT) {
                     const points = Number(gm.TOTAL_UNDER);
                     const odds = Number(gm.UNDER_ODDS);
                     const keyName = `${sport} [#${id}] ${team2} ${period} ttu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.HOME_TEAM, idmk: 3, hv: 1, stl: 1, points, odds, suffix, order: matchOrder + 5 };
-                }         
+                    this.matches[keyName] = { ...base, name: gm.HOME_TEAM, idmk: 3, hv: 1, stl: 1, points, odds, suffix, order: order + 5 };
+                }
                 if (gm.VISITOR_SPECIAL_ODDS) {
                     const odds = Number(gm.VISITOR_SPECIAL_ODDS);
                     const keyName = `${sport} [#${id}] ${team1} : ${team2} ${period} draw`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: "draw", idmk: 6, hv: 3, stl: 3, points: 0, odds, suffix, order: matchOrder + 6 };
+                    this.matches[keyName] = { ...base, name: "draw", idmk: 6, hv: 3, stl: 3, points: 0, odds, suffix, order: order + 6 };
                 }
                 if (gm.OVER_ODDS && !isTT) {
                     const points = Number(gm.TOTAL_OVER);
                     const odds = Number(gm.OVER_ODDS);
-                    const title = gm.VISITOR_TEAM == gm.HOME_TEAM? gm.VISITOR_TEAM : `${team1} : ${team2}`;
+                    const title = team1 == team2 ? team1 : `${team1} : ${team2}`;
                     const keyName = `${sport} [#${id}] ${title} ${period} to`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.VISITOR_TEAM, idmk: 2, hv: 2, stl: 1, points: -points, odds, suffix, order: matchOrder + 7 };
+                    this.matches[keyName] = { ...base, name: team1, idmk: 2, hv: 2, stl: 1, points: -points, odds, suffix, order: order + 7 };
                 }
                 if (gm.UNDER_ODDS && !isTT) {
                     const points = Number(gm.TOTAL_UNDER);
                     const odds = Number(gm.UNDER_ODDS);
-                    const title = gm.VISITOR_TEAM == gm.HOME_TEAM? gm.VISITOR_TEAM : `${team1} : ${team2}`;
+                    const title = team1 == team2 ? team1 : `${team1} : ${team2}`;
                     const keyName = `${sport} [#${id}] ${title} ${period} tu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.HOME_TEAM, idmk: 3, hv: 1, stl: 1, points, odds, suffix, order: matchOrder + 8 };
-                }                
+                    this.matches[keyName] = { ...base, name: team2, idmk: 3, hv: 1, stl: 1, points, odds, suffix, order: order + 8 };
+                }
                 if (!gm.TEAM_NAME && gm.VISITOR_ODDS) {
                     const odds = Number(gm.VISITOR_ODDS);
                     const keyName = `${sport} [#${id}] ${team1} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.VISITOR_TEAM, idmk: 4, hv: 2, stl: 3, points: 0, odds, suffix, order: matchOrder + 0 };
+                    this.matches[keyName] = { ...base, name: team1, idmk: 4, hv: 2, stl: 3, points: 0, odds, suffix, order: order + 0 };
                 }
                 if (!gm.TEAM_NAME && gm.HOME_ODDS) {
                     const odds = Number(gm.HOME_ODDS);
                     const keyName = `${sport} [#${id}] ${team2} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.HOME_TEAM, idmk: 5, hv: 1, stl: 3, points: 0, odds, suffix, order: matchOrder + 1 };
+                    this.matches[keyName] = { ...base, name: team2, idmk: 5, hv: 1, stl: 3, points: 0, odds, suffix, order: order + 1 };
                 }
                 if (gm.TEAM_NAME && gm.HOME_ODDS) {
                     const odds = Number(gm.HOME_ODDS);
                     const keyName = `${sport} [#${id}] ${gm.TEAM_NAME} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, name: gm.TEAM_NAME, 4: 5, hv: 2, stl: 3, points: 0, odds, suffix, order: matchOrder + 2 };
+                    this.matches[keyName] = { ...base, name: gm.TEAM_NAME, 4: 5, hv: 2, stl: 3, points: 0, odds, suffix, order: order + 2 };
                 }
             }
 
@@ -321,7 +333,7 @@ class Godds {
                             }
                             this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT).then(resolve);
                         }
-                        else if (errorMsg.includes("not reached. Your current limit is")) {
+                        else if (errorMsg.includes("Your current limit is")) {
                             stake = Number(errorMsg.match(/Your current limit is ([0-9.]+)/)?.[1]?.replace(/[$,USD]/g, "").trim());
                             this.placebet(account, betslip, stake, pointsT, oddsT).then(resolve);
                         }
@@ -333,7 +345,7 @@ class Godds {
             });
         })
     }
-    async place(betslip, stake, pointsT=0, oddsT=10) {
+    async place(betslip, stake, pointsT = 0, oddsT = 10) {
         let outputs = [];
         for (let account of this.accounts) {
             const result = await this.placebet(account, betslip, Math.max(Math.min(stake, account.user_maxWager, account.user_max), account.minWager), pointsT, oddsT);
@@ -347,24 +359,24 @@ class Godds {
         try {
             const response = await fetch("https://gotocasino.ag/Actions/api/PlayerInformation/ReloadInformation", {
                 "headers": {
-                  "accept": "application/json, text/plain, */*",
-                  "accept-language": "en-US,en;q=0.9",
-                  "apptoken": "E35EA58E-245D-44F3-B51D-C3BACCB1CFD3",
-                  "locker-captcha-validated": "",
-                  "locker-status": "",
-                  "playertoken": account.playerToken,
-                  "priority": "u=1, i",
-                  "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
-                  "sec-ch-ua-mobile": "?0",
-                  "sec-ch-ua-platform": "\"Windows\"",
-                  "sec-fetch-dest": "empty",
-                  "sec-fetch-mode": "cors",
-                  "sec-fetch-site": "same-origin",
-                  "Referer": "https://gotocasino.ag/BetSlip/"
+                    "accept": "application/json, text/plain, */*",
+                    "accept-language": "en-US,en;q=0.9",
+                    "apptoken": "E35EA58E-245D-44F3-B51D-C3BACCB1CFD3",
+                    "locker-captcha-validated": "",
+                    "locker-status": "",
+                    "playertoken": account.playerToken,
+                    "priority": "u=1, i",
+                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "same-origin",
+                    "Referer": "https://gotocasino.ag/BetSlip/"
                 },
                 "body": null,
                 "method": "GET"
-              });
+            });
             const result = await response.json();
             account.balance = result?.Balance?.STANDARD_BALANCE?.CURRENT_BALANCE;
             account.available = result?.Balance?.STANDARD_BALANCE?.REAL_AVAIL_BALANCE;
