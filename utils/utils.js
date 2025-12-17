@@ -92,7 +92,7 @@ exports.teamNameCleaner = (team) => {
 
 exports.playerPropsCleaner = (sport, player) => {
     sport = sport == "CFB" ? "NFL" : sport == "CBB" ? "NBA" : sport == "WNBA" ? "NBA" : sport == "MiLB" ? "MLB" : sport;
-    player = player.replace(new RegExp(" tot | total |:|-", "gi"), "").replace(/\s*\([A-Z]{2,5}\)/g, "");
+    player = player.replace(new RegExp(" total| tot|:|-", "gi"), "").replace(/\s*\([A-Z]{2,5}\)/g, "");
 
     let replaced = false;
 
