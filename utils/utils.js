@@ -41,13 +41,11 @@ exports.leagueNameCleaner = (sport, desc) => {
     if (!is_valid) return;
         
     desc = desc.replace(/^[\s-]+|[\s-]+$/g, "").replace(/^[\s(]+|[\s)]+$/g, "").trim();
-    if (desc == "") desc = "game lines";
-    if (new RegExp("day football|night football", "i").test(content)) content += " game lines";
+    if (desc == "" || new RegExp("day football|night football", "i").test(content)) content += " game lines";
     
     if (new RegExp("player props", "i").test(content)) {
         return { sport, desc: desc.toUpperCase()};
     }
-
     is_valid = false;
     for (const [key, values] of Object.entries(periods)) {
         if (new RegExp(values.join("|"), "i").test(content)) {
@@ -57,7 +55,7 @@ exports.leagueNameCleaner = (sport, desc) => {
     }
     if (!is_valid) return;
 
-    return { sport, desc: desc.toUpperCase() };
+    return { sport, desc: desc.toUpperCase() || "GAME LINES" };
 }
 
 exports.getPeriod = (content) => {
