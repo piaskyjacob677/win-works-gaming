@@ -1,0 +1,33 @@
+{
+    "🏈": [ "football", "american football", "nfl", "ncaa football", "college football", "cfb", "gridiron" ],
+
+    "🏀": [ "basketball", "nba", "wnba", "ncaa basketball", "college basketball", "cbb", "fiba", "euroleague" ],
+
+    "⚽️": [ "soccer", "football", "futbol", "mls", "epl", "premier league", "uefa", "champions league", "europa league", "world cup"],
+
+    "🏓": [ "table tennis", "ping pong", "ittf" ],
+
+    "🎾": [ "tennis", "atp", "wta", "grand slam", "wimbledon", "us open", "french open", "australian open" ],
+
+    "⚾️": [ "baseball", "mlb", "minor league baseball", "ncaa baseball", "college baseball", "npb", "kbo" ],
+
+    "🏒": [ "hockey", "ice hockey", "nhl", "ncaa hockey", "college hockey", "ahl", "international hockey" ],
+
+    "🥊": [ "fighting", "boxing", "mma", "ufc", "bellator", "pfl", "one championship", "combat sports", "kickboxing" ],
+
+    "⛳️": [ "golf", "pga", "pga tour", "lpga", "european tour", "dp world tour", "masters" ],
+
+    "🏏": [ "cricket", "test cricket", "odi", "t20", "ipl", "bbl", "the hundred", "icc" ],
+
+    "🏐": [ "volleyball", "indoor volleyball", "beach volleyball", "fivb", "ncaa volleyball" ],
+    
+    "🎮": [ "esports", "e-sports", "competitive gaming", "gaming", "csgo", "counter strike", "valorant", "dota", "overwatch" ],
+
+    "🏉": [ "rugby", "rugby union", "rugby league", "six nations", "premiership rugby", "super rugby" ],
+
+    "🤾": [ "handball", "team handball", "european handball", "ihf", "ehf" ],
+
+    "🎱": [ "snooker", "billiards", "pool", "cue sports", "world snooker" ],
+
+    "🎯": [ "darts", "pdc", "bdo", "steel darts", "soft tip darts" ]
+}
