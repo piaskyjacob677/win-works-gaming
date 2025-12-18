@@ -4,17 +4,18 @@ const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsC
 const { resolveApp } = require("../web/utils/path.js");
 
 class Godds {
-    constructor() {
+    constructor(domain = "gotocasino.ag") {
         this.serviceName = "1bv";
         this.hasRotNumber = false;
         this.isReady = false;
         this.matches = {};
         this.accounts = [];
+        this.domain = domain;
     }
     async getLeagues(playerToken) {
         let leagues = [];
         try {
-            const response = await fetch("https://gotocasino.ag/Actions/api/Menu/GetMenu", {
+            const response = await fetch(`https://${this.domain}/Actions/api/Menu/GetMenu`, {
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -29,7 +30,7 @@ class Godds {
                     "sec-fetch-dest": "empty",
                     "sec-fetch-mode": "cors",
                     "sec-fetch-site": "same-origin",
-                    "Referer": "https://gotocasino.ag/BetSlip/"
+                    "Referer": `https://${this.domain}/BetSlip/`
                 },
                 "body": null,
                 "method": "GET"
@@ -57,7 +58,7 @@ class Godds {
             const { id, sportId, sport, desc } = league;
 
             const body = `leagueId=${id}&loadAgentLines=false&loadDefaultOdds=false&sportId=${sportId}&loadMlbLines=true&loadPropsEvents=false`;
-            const response = await fetch(`https://gotocasino.ag/Actions/api/Event/GetEvent?${body}`, {
+            const response = await fetch(`https://${this.domain}/Actions/api/Event/GetEvent?${body}`, {
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -72,7 +73,7 @@ class Godds {
                     "sec-fetch-dest": "empty",
                     "sec-fetch-mode": "cors",
                     "sec-fetch-site": "same-origin",
-                    "Referer": "https://gotocasino.ag/BetSlip/"
+                    "Referer": `https://${this.domain}/BetSlip/`
                 },
                 "body": null,
                 "method": "GET"
@@ -91,7 +92,7 @@ class Godds {
                 let is_props = new RegExp("player props", "i").test(desc);
                 if (is_props) {
                     if (new RegExp("most", "i").test(team1 + " " + team2)) continue;
-                    
+
                     team1 = playerPropsCleaner(sport, team1);
                     team2 = playerPropsCleaner(sport, team2);
                 }
@@ -199,7 +200,7 @@ class Godds {
     }
     async userLogin(account) {
         try {
-            const response = await fetch(`https://gotocasino.ag/Actions/api/Login/PlayerLogin?player=${account.username}&password=${account.password}&domain=https://gotocasino.ag`,
+            const response = await fetch(`https://${this.domain}/Actions/api/Login/PlayerLogin?player=${account.username}&password=${account.password}&domain=https://${this.domain}`,
                 {
                     "headers": {
                         "accept": "application/json, text/plain, */*",
@@ -216,7 +217,7 @@ class Godds {
                         "sec-fetch-mode": "cors",
                         "sec-fetch-site": "same-origin"
                     },
-                    "referrer": "https://gotocasino.ag/BetSlip/",
+                    "referrer": `https://${this.domain}/BetSlip/`,
                     "body": null,
                     "method": "POST",
                     "mode": "cors",
@@ -294,7 +295,7 @@ class Godds {
         }
 
         return new Promise((resolve, reject) => {
-            fetch("https://gotocasino.ag/Actions/api/Betting/SaveBet", {
+            fetch(`https://${this.domain}/Actions/api/Betting/SaveBet`, {
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -311,7 +312,7 @@ class Godds {
                     "sec-fetch-mode": "cors",
                     "sec-fetch-site": "same-origin"
                 },
-                "referrer": "https://gotocasino.ag/BetSlip/",
+                "referrer": `https://${this.domain}/BetSlip/`,
                 "body": JSON.stringify(body),
                 "method": "POST",
                 "mode": "cors",
@@ -357,7 +358,7 @@ class Godds {
     }
     async getUserInfo(account) {
         try {
-            const response = await fetch("https://gotocasino.ag/Actions/api/PlayerInformation/ReloadInformation", {
+            const response = await fetch(`https://${this.domain}/Actions/api/PlayerInformation/ReloadInformation`, {
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -372,7 +373,7 @@ class Godds {
                     "sec-fetch-dest": "empty",
                     "sec-fetch-mode": "cors",
                     "sec-fetch-site": "same-origin",
-                    "Referer": "https://gotocasino.ag/BetSlip/"
+                    "Referer": `https://${this.domain}/BetSlip/`
                 },
                 "body": null,
                 "method": "GET"
@@ -422,6 +423,34 @@ class Godds {
 
             this.isReady = true;
             fs.writeFileSync(resolveApp(`${process.env.DIR_EVENTS}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+        }
+    }
+    async openBets(playerToken) {
+        try {
+            const response = await fetch(`https://${this.domain}/Actions/api/OpenBets/OpenBets`, {
+                "headers": {
+                    "accept": "application/json, text/plain, */*",
+                    "accept-language": "en-US,en;q=0.9",
+                    "apptoken": "E35EA58E-245D-44F3-B51D-C3BACCB1CFD3",
+                    "locker-captcha-validated": "",
+                    "locker-status": "",
+                    "playertoken": playerToken,
+                    "priority": "u=1, i",
+                    "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "same-origin",
+                    "Referer": `https://${this.domain}/BetSlip/`
+                },
+                "body": null,
+                "method": "GET"
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.log(this.serviceName, error);
         }
     }
 }
