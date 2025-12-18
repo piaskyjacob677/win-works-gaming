@@ -30,7 +30,6 @@ class Server {
     init() {
         for (const service of this.services) {
             service.accounts = this.accounts[service.serviceName];
-            service.userManager();
         }
         this.handleProcessError();
         this.botRunner();
@@ -68,38 +67,43 @@ class Server {
         let ticketIds = [];
         while (1) {
             for (const service of this.services) {
-                for (const account of service.accounts) {
+                for (let account of service.accounts) {
                     try {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        
+                        account = await service.userLogin(account);
                         if (!account.playerToken) continue;
                         
                         const openBets = await service.openBets(account.playerToken);
+                        if (openBets == null) continue;
+
+                        console.log(new Date().toLocaleString(), service.serviceName, account.username, openBets.length);
                         
-                        if (!openBets) continue;
-
                         for (const openBet of openBets) {
-                            const { TICKET_ID, DESCRIPTION, AMOUNT_TO_RISK, AMOUNT_TO_WIN } = openBet;
-
-                            if (ticketIds.includes(TICKET_ID)) continue;
-
-                            ticketIds.push(TICKET_ID);
-
-                            for (const [emoji, keywords] of Object.entries(emojis)) {
-                                if (keywords.some(keyword => new RegExp(keyword, 'i').test(DESCRIPTION[0]))) {
-                                    const message = `${emoji} ${DESCRIPTION[0].split("M")[1].trim()} ${AMOUNT_TO_RISK}/${AMOUNT_TO_WIN}`;
-                                    console.log(message);
-                                    await this.sendMessageToChannel(message);
-                                    break;
+                            try {
+                                const { TICKET_ID, DESCRIPTION, AMOUNT_TO_RISK, AMOUNT_TO_WIN } = openBet;
+                                
+                                if (ticketIds.includes(TICKET_ID)) continue;
+                                
+                                ticketIds.push(TICKET_ID);
+                                
+                                for (const [emoji, keywords] of Object.entries(emojis)) {
+                                    if (keywords.some(keyword => new RegExp(keyword, 'i').test(DESCRIPTION[0]))) {
+                                        const message = `${emoji} ${DESCRIPTION[0].split("M")[1].trim()} ${AMOUNT_TO_RISK}/${AMOUNT_TO_WIN}`;
+                                        console.log(message);
+                                        await this.sendMessageToChannel(message);
+                                        break;
+                                    }
                                 }
+                            } catch (error) {
+                                console.log(service.serviceName, account.username, error.message);
                             }
                         }
+                        
                     } catch (error) {
-                        console.log(this.service.serviceName, account.username, error.message);
+                        console.log(service.serviceName, account.username, error.message);
                     }
                 }
             }
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1000 * 60 * 2));
         }
     }
 }
