@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { JSDOM } = require("jsdom");
 const { resolveApp } = require("../web/utils/path.js");
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 class Abcwager {
     constructor() {
@@ -12,10 +13,11 @@ class Abcwager {
         this.matches = {};
         this.accounts = [];
     }
-    async getLeagues(sessionId) {
+    async getLeagues(sessionId, agent) {
         let leagueList = [];
         try {
             const response = await fetch("https://wager.abcwagering.ag/wager/CreateSports.aspx?WT=0", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -56,11 +58,12 @@ class Abcwager {
         }
         return leagueList;
     }
-    async getLeagueMatches(league, sessionId) {
+    async getLeagueMatches(league, sessionId, agent) {
         try {
             const { id, sport, desc } = league;
 
             const response = await fetch(`https://wager.abcwagering.ag/wager/splitschedule.aspx?wt=0&lg=${id}`, {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -131,7 +134,7 @@ class Abcwager {
                 let is_props = new RegExp("player props", "i").test(desc);
                 if (is_props) {
                     if (new RegExp("most", "i").test(team1 + " " + team2)) continue;
-                    
+
                     team1 = playerPropsCleaner(sport, team1);
                     team2 = playerPropsCleaner(sport, team2);
                 }
@@ -141,10 +144,10 @@ class Abcwager {
                     team1 = getFullName(sport, team1) || team1;
                     team2 = getFullName(sport, team2) || team2;
                 }
-                
+
                 const period = getPeriod(sport + " " + desc + " " + gm.team1 + " " + gm.team2);
                 const order = period.startsWith("1") ? 1000 : period.startsWith("2") ? 2000 : period.startsWith("3") ? 3000 : period.startsWith("4") ? 4000 : 0;
-                
+
                 const base = { sport, desc, idlg: id, hasRotNumber: this.hasRotNumber, is_props };
                 const isTT = `${gm.team1} ${gm.team2}`.toLowerCase().includes("total");
 
@@ -220,9 +223,10 @@ class Abcwager {
             console.log(this.serviceName, error, league);
         }
     }
-    async userLogin(account) {
+    async userLogin(account, agent) {
         try {
             const response = await fetch("https://wager.abcwagering.ag/DefaultLogin.aspx", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -241,13 +245,15 @@ class Abcwager {
                     "Referer": "https://www.abcwagering.ag/"
                 },
                 "body": `siteID=11&errorURL=%2F%2Fwww.abcwagering.ag%2F%3Flogin-error&account=${account.username}&password=${account.password}`,
-                "method": "POST"
+                "method": "POST",
             });
-            const cookie = response.headers.get('set-cookie');
+
+            const cookie = response.headers.get('set-cookie');            
             const sessionId = cookie.match(/ASP\.NET_SessionId=([^;]+)/)[1];
             account.sessionId = sessionId;
 
             await fetch("https://wager.abcwagering.ag/login.aspx", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -275,13 +281,14 @@ class Abcwager {
 
         return account;
     }
-    async getViewState(account, leagueID, selection) {
+    async getViewState(account, leagueID, selection, agent) {
         let viewState = null;
         let viewStateGenerator = null;
         let eventValidation = null;
 
         try {
             const response = await fetch(`https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${leagueID}&wt=0&sel=${selection}`, {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -311,11 +318,12 @@ class Abcwager {
         }
         return { viewState, viewStateGenerator, eventValidation };
     }
-    async createWager(account, leagueID, selection, stake) {
-        let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(account, leagueID, selection);
+    async createWager(account, leagueID, selection, stake, agent) {
+        let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(account, leagueID, selection, agent);
 
         try {
             const response = await fetch(`https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${leagueID}&sel=${selection}&wt=0`, {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -350,14 +358,14 @@ class Abcwager {
         }
         return { viewState, viewStateGenerator, eventValidation, stake };
     }
-    async placebet(account, betslip, stake, pointsT, oddsT, deep = 0) {
+    async placebet(account, betslip, stake, pointsT, oddsT, agent, deep = 0) {
         if (deep >= 2) return resolve({ service: this.serviceName, account, msg: "Max deep reached" });
         if (account.sessionId == null) return { service: this.serviceName, account, msg: "Session expired" };
 
         const selection = [...betslip.sel.split("_").slice(0, 2), betslip.points, betslip.odds].join("_");
         const idmk = Number(selection[0]);
 
-        const result = await this.createWager(account, betslip.idlg, betslip.sel, stake);
+        const result = await this.createWager(account, betslip.idlg, betslip.sel, stake, agent);
         const viewState = result.viewState;
         const viewStateGenerator = result.viewStateGenerator;
         const eventValidation = result.eventValidation;
@@ -365,6 +373,7 @@ class Abcwager {
 
         try {
             const response = await fetch("https://wager.abcwagering.ag/wager/ConfirmWager.aspx?WT=0", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -393,7 +402,7 @@ class Abcwager {
                 if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, idmk == 2 || idmk == 3 ? "total" : "")) {
                     return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
                 }
-                return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, deep + 1);
+                return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, agent, deep + 1);
             }
             else {
                 const errorMsg = data.match(/The Following Error Occurred:[\s\S]*?<span id="ctl00_WagerContent_ctl00_lblError">([^<]+)</)?.[1]?.trim();
@@ -405,19 +414,21 @@ class Abcwager {
             return { service: this.serviceName, account, msg: error.message };
         }
     }
-    async place(betslip, stake, pointsT=0, oddsT=10) {
+    async place(betslip, stake, pointsT = 0, oddsT = 10) {
         let outputs = [];
         for (let account of this.accounts) {
-            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
         }
         return outputs;
     }
-    async getUserInfo(account) {
+    async getUserInfo(account, agent) {
         try {
             const response = await fetch("https://wager.abcwagering.ag/wager/CreateSports.aspx?WT=0", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -452,8 +463,9 @@ class Abcwager {
     async userManager() {
         while (1) {
             for (let account of this.accounts) {
-                if (!account.sessionId) account = await this.userLogin(account);
-                account = await this.getUserInfo(account);
+                const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+                if (!account.sessionId) account = await this.userLogin(account, agent);
+                account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -466,10 +478,11 @@ class Abcwager {
             let account = this.accounts.length > 0 ? this.accounts[0] : {};
             if (!account.sessionId) continue;
 
-            const leagues = await this.getLeagues(account.sessionId);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            const leagues = await this.getLeagues(account.sessionId, agent);
 
             for (const league of leagues) {
-                const is_ok = await this.getLeagueMatches(league, account.sessionId);
+                const is_ok = await this.getLeagueMatches(league, account.sessionId, agent);
                 let delay = this.isReady ? 1000 : 100;
                 if (!is_ok) delay = 5000;
                 await new Promise(resolve => setTimeout(resolve, delay));

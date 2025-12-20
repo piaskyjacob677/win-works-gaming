@@ -2,6 +2,7 @@ const fs = require("fs");
 const fetch = require("node-fetch");
 const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { resolveApp } = require("../web/utils/path.js");
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 class Action {
     constructor() {
@@ -11,10 +12,11 @@ class Action {
         this.matches = {};
         this.accounts = [];
     }
-    async getLeagues(sessionId) {
+    async getLeagues(sessionId, agent) {
         let leagues = [];
         try {
             const response = await fetch("https://backend.play23.ag/wager/ActiveLeaguesHelper.aspx?WT=0", {
+                agent: agent,
                 headers: {
                     "accept": "application/json, text/plain, */*",
                     "referer": "https://backend.play23.ag/wager/CreateSports.aspx?WT=0",
@@ -35,11 +37,12 @@ class Action {
         }
         return leagues;
     }
-    async getLeagueMatches(league, sessionId) {
+    async getLeagueMatches(league, sessionId, agent) {
         try {
             const { id, sport, desc } = league;
 
             const response = await fetch(`https://backend.play23.ag/wager/NewScheduleHelper.aspx?WT=0&lg=${id}`, {
+                agent: agent,
                 headers: {
                     "accept": "application/json, text/plain, */*",
                     "referer": `https://backend.play23.ag/wager/NewSchedule.aspx?lg=${id}&WT=0`,
@@ -152,13 +155,14 @@ class Action {
             console.log(this.serviceName, error, league);
         }
     }
-    async userLogin(account) {
+    async userLogin(account, agent) {
         try {
             const page = await fetch("https://backend.play23.ag/Login.aspx").then(r => r.text());
             const viewState = page.match(/name="__VIEWSTATE".*?value="([^"]+)"/)[1];
             const viewStateGenerator = page.match(/name="__VIEWSTATEGENERATOR".*?value="([^"]+)"/)[1];
 
             const response = await fetch("https://backend.play23.ag/Login.aspx", {
+                "agent": agent,
                 method: "POST",
                 headers: {
                     "content-type": "application/x-www-form-urlencoded",
@@ -177,9 +181,10 @@ class Action {
 
         return account;
     }
-    async createWager(sessionId, sel, IdLeague) {
+    async createWager(sessionId, sel, IdLeague, agent) {
         try {
             const response = await fetch("https://backend.action23.ag/wager/CreateWagerHelper.aspx", {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -203,7 +208,7 @@ class Action {
             console.log(this.serviceName, error);
         }
     }
-    async confirmWager(sessionId, sel, IdLeague, idgm, idmk, stake) {
+    async confirmWager(sessionId, sel, IdLeague, idgm, idmk, stake, agent) {
         const detailData = [{
             "Amount": stake,
             "RiskWin": "0",
@@ -221,6 +226,7 @@ class Action {
 
         try {
             const response = await fetch("https://backend.action23.ag/wager/ConfirmWagerHelper.aspx", {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -254,7 +260,7 @@ class Action {
             console.log(this.serviceName, error);
         }
     }
-    async placebet(account, betslip, stake, pointsT, oddsT, deep = 0) {
+    async placebet(account, betslip, stake, pointsT, oddsT, agent, deep = 0) {
         const { sessionId, password } = account;
         if (sessionId == null) return { service: this.serviceName, account, msg: "Session expired" };
         if (deep > 2) return resolve({ service: this.serviceName, account, msg: "Max deep reached" });
@@ -262,7 +268,7 @@ class Action {
         const { IdLeague, idgm, idmk, points, odds } = betslip;
         const sel = `${idmk}_${idgm}_${points}_${odds}`;
 
-        const confirmWagerResult = await this.confirmWager(sessionId, sel, IdLeague, idgm, idmk, stake);
+        const confirmWagerResult = await this.confirmWager(sessionId, sel, IdLeague, idgm, idmk, stake, agent);
         if (!confirmWagerResult) return { service: this.serviceName, account, msg: "Confirm wager failed" };
         if (confirmWagerResult.errorMsg) return { service: this.serviceName, account, msg: confirmWagerResult.errorMsg };
 
@@ -299,6 +305,7 @@ class Action {
             }];
 
             const response = await fetch("https://backend.play23.ag/wager/PostWagerMultipleHelper.aspx", {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -325,7 +332,7 @@ class Action {
                 if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, betslip.idmk == 2 || betslip.idmk == 3 ? "total" : "")) {
                     return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
                 }
-                this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, deep + 1).then(resolve);
+                this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, agent, deep + 1).then(resolve);
             }
             else if (wagerResult.ErrorMsg) {
                 return { service: this.serviceName, account, msg: wagerResult.ErrorMsg };
@@ -340,16 +347,18 @@ class Action {
     async place(betslip, stake, pointsT = 0, oddsT = 10) {
         let outputs = [];
         for (let account of this.accounts) {
-            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
         }
         return outputs;
     }
-    async getUserInfo(account) {
+    async getUserInfo(account, agent) {
         try {
             const response = await fetch("https://backend.play23.ag/wager/Welcome.aspx?login=1", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -384,8 +393,9 @@ class Action {
     async userManager() {
         while (1) {
             for (let account of this.accounts) {
-                if (!account.sessionId) account = await this.userLogin(account);
-                account = await this.getUserInfo(account);
+                const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+                if (!account.sessionId) account = await this.userLogin(account, agent);
+                account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -398,10 +408,12 @@ class Action {
             let account = this.accounts.length > 0 ? this.accounts[0] : {};
             if (!account.sessionId) continue;
 
-            const leagues = await this.getLeagues(account.sessionId);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+
+            const leagues = await this.getLeagues(account.sessionId, agent);
 
             for (const league of leagues) {
-                const is_ok = await this.getLeagueMatches(league, account.sessionId);
+                const is_ok = await this.getLeagueMatches(league, account.sessionId, agent);
                 let delay = this.isReady ? 1000 : 100;
                 if (!is_ok) delay = 5000;
                 await new Promise(resolve => setTimeout(resolve, delay));

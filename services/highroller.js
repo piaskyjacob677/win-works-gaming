@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { JSDOM } = require("jsdom");
 const { resolveApp } = require("../web/utils/path.js");
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 class Highroller {
     constructor() {
@@ -12,7 +13,7 @@ class Highroller {
         this.matches = {};
         this.accounts = [];
     }
-    async getLeagues(cookie) {
+    async getLeagues(cookie, agent) {
         let leagueList = [];
         let viewState = null;
         let viewStateGenerator = null;
@@ -20,6 +21,7 @@ class Highroller {
 
         try {
             const response = await fetch("https://www.thehighroller.net/wager/CreateSports.aspx?WT=0&msg=true", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -66,11 +68,12 @@ class Highroller {
 
         return { leagueList, viewState, viewStateGenerator, eventValidation };
     }
-    async getLeagueMatches(league, cookie, viewState, viewStateGenerator, eventValidation) {
+    async getLeagueMatches(league, cookie, viewState, viewStateGenerator, eventValidation, agent) {
         try {
             const { id, sport, desc } = league;
 
             const response = await fetch("https://www.thehighroller.net/wager/CreateSports.aspx?WT=0&msg=true", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -216,9 +219,10 @@ class Highroller {
             console.log(this.serviceName, error, league);
         }
     }
-    async userLogin(account) {
+    async userLogin(account, agent) {
         try {
             let response = await fetch("https://www.thehighroller.net/Login.aspx", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -243,6 +247,7 @@ class Highroller {
             const cookie = response.headers.get('set-cookie').replace(" path=/,", "").replace(" path=/; HttpOnly", "") + " IsAgent-IsClassic=false-true";
 
             response = await fetch("https://www.thehighroller.net/Login.aspx", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -272,13 +277,14 @@ class Highroller {
 
         return account;
     }
-    async getViewState(cookie, leagueID, selection) {
+    async getViewState(cookie, leagueID, selection, agent) {
         let viewState = null;
         let viewStateGenerator = null;
         let eventValidation = null;
 
         try {
             const response = await fetch(`https://www.thehighroller.net/wager/CreateWager.aspx?WT=0&lg=${leagueID}&sel=${selection}_${selection}`, {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -307,11 +313,12 @@ class Highroller {
         }
         return { viewState, viewStateGenerator, eventValidation };
     }
-    async createWager(cookie, leagueID, selection, stake) {
+    async createWager(cookie, leagueID, selection, stake, agent) {
         let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(cookie, leagueID, selection);
 
         try {
             const response = await fetch(`https://www.thehighroller.net/wager/CreateWager.aspx?WT=0&lg=${leagueID}&sel=${selection}_${selection}`, {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -350,7 +357,7 @@ class Highroller {
         }
         return { viewState, viewStateGenerator, eventValidation, stake };
     }
-    async placebet(account, betslip, stake, pointsT, oddsT) {
+    async placebet(account, betslip, stake, pointsT, oddsT, agent) {
         if (account.cookie == null) return { service: this.serviceName, account, msg: "Cookie expired" };
 
         const selection = [...betslip.sel.split("_").slice(0, 2), betslip.points, betslip.odds].join("_");
@@ -367,6 +374,7 @@ class Highroller {
 
         try {
             const response = await fetch("https://www.thehighroller.net/wager/ConfirmWager.aspx?WT=0", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -395,7 +403,7 @@ class Highroller {
                 if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, idmk == 2 || idmk == 3 ? "total" : "")) {
                     return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
                 }
-                return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT)
+                return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, agent)
             }
             else {
                 const errorMsg = data.match(/The Following Error Occurred:[\s\S]*?<span id="ctl00_WagerContent_ctl00_lblError">([^<]+)</)?.[1]?.trim();
@@ -410,16 +418,18 @@ class Highroller {
     async place(betslip, stake, pointsT=0, oddsT=10) {
         let outputs = [];
         for (let account of this.accounts) {
-            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
         }
         return outputs;
     }
-    async getUserInfo(account) {
+    async getUserInfo(account, agent) {
         try {
             const response = await fetch("https://www.thehighroller.net/wager/CreateSports.aspx?WT=0&msg=true", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -454,8 +464,9 @@ class Highroller {
     async userManager() {
         while (1) {
             for (let account of this.accounts) {
-                if (!account.cookie) account = await this.userLogin(account);
-                account = await this.getUserInfo(account);
+                const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+                if (!account.cookie) account = await this.userLogin(account, agent);
+                account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -468,10 +479,12 @@ class Highroller {
             let account = this.accounts.length > 0 ? this.accounts[0] : {};
             if (!account.cookie) continue;
 
-            const { leagueList, viewState, viewStateGenerator, eventValidation } = await this.getLeagues(account.cookie);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+
+            const { leagueList, viewState, viewStateGenerator, eventValidation } = await this.getLeagues(account.cookie, agent);
 
             for (const league of leagueList) {
-                const is_ok = await this.getLeagueMatches(league, account.cookie, viewState, viewStateGenerator, eventValidation);
+                const is_ok = await this.getLeagueMatches(league, account.cookie, viewState, viewStateGenerator, eventValidation, agent);
                 let delay = this.isReady ? 1000 : 100;
                 if (!is_ok) delay = 5000;
                 await new Promise(resolve => setTimeout(resolve, delay));

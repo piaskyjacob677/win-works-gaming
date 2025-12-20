@@ -2,6 +2,7 @@ const fs = require("fs");
 const fetch = require("node-fetch");
 const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { resolveApp } = require("../web/utils/path.js");
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 class Godds {
     constructor(domain = "gotocasino.ag") {
@@ -12,10 +13,11 @@ class Godds {
         this.accounts = [];
         this.domain = domain;
     }
-    async getLeagues(playerToken) {
+    async getLeagues(playerToken, agent) {
         let leagues = [];
         try {
             const response = await fetch(`https://${this.domain}/Actions/api/Menu/GetMenu`, {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -53,12 +55,13 @@ class Godds {
         }
         return leagues;
     }
-    async getLeagueMatches(league, playerToken) {
+    async getLeagueMatches(league, playerToken, agent) {
         try {
             const { id, sportId, sport, desc } = league;
 
             const body = `leagueId=${id}&loadAgentLines=false&loadDefaultOdds=false&sportId=${sportId}&loadMlbLines=true&loadPropsEvents=false`;
             const response = await fetch(`https://${this.domain}/Actions/api/Event/GetEvent?${body}`, {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -198,31 +201,31 @@ class Godds {
             console.log(this.serviceName, error, league);
         }
     }
-    async userLogin(account) {
+    async userLogin(account, agent) {
         try {
-            const response = await fetch(`https://${this.domain}/Actions/api/Login/PlayerLogin?player=${account.username}&password=${account.password}&domain=https://${this.domain}`,
-                {
-                    "headers": {
-                        "accept": "application/json, text/plain, */*",
-                        "accept-language": "en-US,en;q=0.9",
-                        "apptoken": "E35EA58E-245D-44F3-B51D-C3BACCB1CFD3",
-                        "locker-captcha-validated": "",
-                        "locker-status": "",
-                        "playertoken": "",
-                        "priority": "u=1, i",
-                        "sec-ch-ua": "\"Chromium\";v=\"140\", \"Not=A?Brand\";v=\"24\", \"Google Chrome\";v=\"140\"",
-                        "sec-ch-ua-mobile": "?0",
-                        "sec-ch-ua-platform": "\"Windows\"",
-                        "sec-fetch-dest": "empty",
-                        "sec-fetch-mode": "cors",
-                        "sec-fetch-site": "same-origin"
-                    },
-                    "referrer": `https://${this.domain}/BetSlip/`,
-                    "body": null,
-                    "method": "POST",
-                    "mode": "cors",
-                    "credentials": "include"
-                });
+            const response = await fetch(`https://${this.domain}/Actions/api/Login/PlayerLogin?player=${account.username}&password=${account.password}&domain=https://${this.domain}`,{
+                "agent": agent,
+                "headers": {
+                    "accept": "application/json, text/plain, */*",
+                    "accept-language": "en-US,en;q=0.9",
+                    "apptoken": "E35EA58E-245D-44F3-B51D-C3BACCB1CFD3",
+                    "locker-captcha-validated": "",
+                    "locker-status": "",
+                    "playertoken": "",
+                    "priority": "u=1, i",
+                    "sec-ch-ua": "\"Chromium\";v=\"140\", \"Not=A?Brand\";v=\"24\", \"Google Chrome\";v=\"140\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "same-origin"
+                },
+                "referrer": `https://${this.domain}/BetSlip/`,
+                "body": null,
+                "method": "POST",
+                "mode": "cors",
+                "credentials": "include"
+            });
             account.playerToken = (await response.json()).PlayerToken;
         } catch (error) {
             console.log(this.serviceName, error);
@@ -230,7 +233,7 @@ class Godds {
 
         return account;
     }
-    placebet(account, betslip, stake, pointsT, oddsT) {
+    placebet(account, betslip, stake, pointsT, oddsT, agent) {
         if (account.playerToken == null) return { service: this.serviceName, account, msg: "Player token expired" };
 
         let matchOdd = {
@@ -296,6 +299,7 @@ class Godds {
 
         return new Promise((resolve, reject) => {
             fetch(`https://${this.domain}/Actions/api/Betting/SaveBet`, {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -349,16 +353,18 @@ class Godds {
     async place(betslip, stake, pointsT = 0, oddsT = 10) {
         let outputs = [];
         for (let account of this.accounts) {
-            const result = await this.placebet(account, betslip, Math.max(Math.min(stake, account.user_maxWager, account.user_max), account.minWager), pointsT, oddsT);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            const result = await this.placebet(account, betslip, Math.max(Math.min(stake, account.user_maxWager, account.user_max), account.minWager), pointsT, oddsT, agent);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
         }
         return outputs;
     }
-    async getUserInfo(account) {
+    async getUserInfo(account, agent) {
         try {
             const response = await fetch(`https://${this.domain}/Actions/api/PlayerInformation/ReloadInformation`, {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -398,8 +404,9 @@ class Godds {
     async userManager() {
         while (1) {
             for (let account of this.accounts) {
-                if (!account.playerToken) account = await this.userLogin(account);
-                account = await this.getUserInfo(account);
+                const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+                if (!account.playerToken) account = await this.userLogin(account, agent);
+                account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -412,10 +419,12 @@ class Godds {
             let account = this.accounts.length > 0 ? this.accounts[0] : {};
             if (!account.playerToken) continue;
 
-            const leagues = await this.getLeagues(account.playerToken);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+
+            const leagues = await this.getLeagues(account.playerToken, agent);
 
             for (const league of leagues) {
-                const is_ok = await this.getLeagueMatches(league, account.playerToken);
+                const is_ok = await this.getLeagueMatches(league, account.playerToken, agent);
                 let delay = this.isReady ? 1000 : 100;
                 if (!is_ok) delay = 5000;
                 await new Promise(resolve => setTimeout(resolve, delay));

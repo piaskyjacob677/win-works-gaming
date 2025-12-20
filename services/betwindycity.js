@@ -2,6 +2,7 @@ const fs = require("fs");
 const fetch = require("node-fetch");
 const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { resolveApp } = require("../web/utils/path.js");
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 class Betwindycity {
     constructor() {
@@ -11,10 +12,11 @@ class Betwindycity {
         this.matches = {};
         this.accounts = [];
     }
-    async getLeagues(token) {
+    async getLeagues(token, agent) {
         let leagues = [];
         try {
             const response = await fetch("https://betwindycity.com/player-api/api/wager/sportsavailablebyplayeronleague/false", {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -68,12 +70,13 @@ class Betwindycity {
         }
         return bestLine?.i;
     }
-    async getLeagueMatches(league, token) {
+    async getLeagueMatches(league, token, agent) {
         try {
             const { id, IdSportType, PeriodNumber, sport, desc } = league;
             let index = `${id}${IdSportType}${PeriodNumber}`;
 
             const response = await fetch("https://betwindycity.com/player-api/api/wager/schedules/S/0", {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -231,9 +234,10 @@ class Betwindycity {
             console.log(this.serviceName, error, league);
         }
     }
-    async userLogin(account) {
+    async userLogin(account, agent) {
         try {
             const response = await fetch("https://betwindycity.com/player-api/identity/CustomerLoginRedir?RedirToHome=1", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -258,6 +262,7 @@ class Betwindycity {
             const token = location[0].split("=")[1];
 
             const response2 = await fetch("https://betwindycity.com/player-api/identity/customerLoginFromToken", {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "content-type": "application/json",
@@ -275,7 +280,7 @@ class Betwindycity {
 
         return account;
     }
-    async saveBet(token, selection, stake) {
+    async saveBet(token, selection, stake, agent) {
         const list = {
             "CaptchaMessage": null,
             "DelayKey": "",
@@ -304,6 +309,7 @@ class Betwindycity {
         };
 
         const response = await fetch("https://betwindycity.com/player-api/api/wager/SaveBet/", {
+            "agent": agent,
             "headers": {
                 "accept": "application/json, text/plain, */*",
                 "accept-language": "en-US,en;q=0.9",
@@ -330,8 +336,9 @@ class Betwindycity {
 
         return { ticketNumber: data?.TicketNumber, errorMsg };
     }
-    async confirmBet(token, ticketNumber) {
+    async confirmBet(token, ticketNumber, agent) {
         const response = await fetch("https://betwindycity.com/player-api/api/wager/confirmBet/", {
+            "agent": agent,
             "headers": {
                 "accept": "application/json, text/plain, */*",
                 "accept-language": "en-US,en;q=0.9",
@@ -351,14 +358,14 @@ class Betwindycity {
         const data = await response.json();
         return data;
     }
-    async placebet(account, betslip, stake, pointsT, oddsT) {
+    async placebet(account, betslip, stake, pointsT, oddsT, agent) {
         if (account.token == null) return { service: this.serviceName, account, msg: "Token expired" };
 
         const selection = [...betslip.sel.split("_").slice(0, 2), betslip.points, betslip.odds].join("_") + "_0_0_0";
 
-        const { ticketNumber, errorMsg } = await this.saveBet(account.token, selection, stake);
+        const { ticketNumber, errorMsg } = await this.saveBet(account.token, selection, stake, agent);
         if (errorMsg) return { service: this.serviceName, account, msg: errorMsg };
-        const result = await this.confirmBet(account.token, ticketNumber);
+        const result = await this.confirmBet(account.token, ticketNumber, agent);
         if (result.StatusDescription == "ACCEPTED") return { service: this.serviceName, account, stake };
         return { service: this.serviceName, account, msg: result.StatusDescription };
     }
@@ -366,16 +373,18 @@ class Betwindycity {
         let outputs = [];
         stake = stake > betslip.limit ? betslip.limit : stake;
         for (let account of this.accounts) {
-            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
         }
         return outputs;
     }
-    async getUserInfo(account) {
+    async getUserInfo(account, agent) {
         try {
             const response = await fetch("https://betwindycity.com/player-api/api/customer/balance", {
+                "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -406,8 +415,9 @@ class Betwindycity {
     async userManager() {
         while (1) {
             for (let account of this.accounts) {
-                if (!account.token) account = await this.userLogin(account);
-                account = await this.getUserInfo(account);
+                const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+                if (!account.token) account = await this.userLogin(account, agent);
+                account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -420,10 +430,12 @@ class Betwindycity {
             let account = this.accounts.length > 0 ? this.accounts[0] : {};
             if (!account.token) continue;
 
-            const leagues = await this.getLeagues(account.token);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+
+            const leagues = await this.getLeagues(account.token, agent);
 
             for (const league of leagues) {
-                const is_ok = await this.getLeagueMatches(league, account.token);
+                const is_ok = await this.getLeagueMatches(league, account.token, agent);
                 let delay = this.isReady ? 1000 : 100;
                 if (!is_ok) delay = 5000;
                 await new Promise(resolve => setTimeout(resolve, delay));

@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { JSDOM } = require("jsdom");
 const { resolveApp } = require("../web/utils/path.js");
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 class Fesster {
     constructor() {
@@ -12,10 +13,11 @@ class Fesster {
         this.matches = {};
         this.accounts = [];
     }
-    async getLeagues(account) {
+    async getLeagues(account, agent) {
         let leagueList = [];
         try {
             const response = await fetch("https://m.blue987.com/wager/CreateSports.aspx?WT=0", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -56,11 +58,12 @@ class Fesster {
         }
         return leagueList;
     }
-    async getLeagueMatches(league, account) {
+    async getLeagueMatches(league, account, agent) {
         try {
             const { id, sport, desc } = league;
 
             const response = await fetch("https://m.blue987.com/wager/CreateSports.aspx?WT=0", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -208,9 +211,10 @@ class Fesster {
             console.log(this.serviceName, error, league);
         }
     }
-    async userLogin(account) {
+    async userLogin(account, agent) {
         try {
             const response = await fetch("https://m.blue987.com/login.aspx", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -241,13 +245,14 @@ class Fesster {
 
         return account;
     }
-    async getViewState(account, leagueID, selection) {
+    async getViewState(account, leagueID, selection, agent) {
         let viewState = null;
         let viewStateGenerator = null;
         let eventValidation = null;
 
         try {
             const response = await fetch(`https://m.blue987.com/wager/CreateWager.aspx?WT=0&lg=${leagueID}&sel=${selection}`, {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -277,11 +282,12 @@ class Fesster {
         }
         return { viewState, viewStateGenerator, eventValidation };
     }
-    async createWager(account, leagueID, selection, stake) {
-        let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(account, leagueID, selection);
+    async createWager(account, leagueID, selection, stake, agent) {
+        let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(account, leagueID, selection, agent);
 
         try {
             const response = await fetch(`https://m.blue987.com/wager/CreateWager.aspx?WT=0&lg=${leagueID}&sel=${selection}`, {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -316,13 +322,13 @@ class Fesster {
         }
         return { viewState, viewStateGenerator, eventValidation, stake };
     }
-    async placebet(account, betslip, stake, pointsT, oddsT) {
+    async placebet(account, betslip, stake, pointsT, oddsT, agent) {
         if (account.sessionId == null) return { service: this.serviceName, account, msg: "Session expired" };
 
         const selection = [...betslip.sel.split("_").slice(0, 2), betslip.points, betslip.odds].join("_");
         const idmk = Number(selection[0]);
 
-        const result = await this.createWager(account, betslip.idlg, betslip.sel, stake);
+        const result = await this.createWager(account, betslip.idlg, betslip.sel, stake, agent);
         const viewState = result.viewState;
         const viewStateGenerator = result.viewStateGenerator;
         const eventValidation = result.eventValidation;
@@ -330,6 +336,7 @@ class Fesster {
 
         try {
             const response = await fetch("https://m.blue987.com/wager/ConfirmWager.aspx?WT=0", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -358,7 +365,7 @@ class Fesster {
                 if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, idmk == 2 || idmk == 3 ? "total" : "")) {
                     return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
                 }
-                return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT)
+                return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, agent)
             }
             else {
                 if (data.includes("The Following Error Occurred")) {
@@ -375,16 +382,18 @@ class Fesster {
     async place(betslip, stake, pointsT=0, oddsT=10) {
         let outputs = [];
         for (let account of this.accounts) {
-            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
         }
         return outputs;
     }
-    async getUserInfo(account) {
+    async getUserInfo(account, agent) {
         try {
             const response = await fetch("https://m.blue987.com/wager/Welcome.aspx", {
+                "agent": agent,
                 "headers": {
                     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                     "accept-language": "en-US,en;q=0.9",
@@ -417,8 +426,9 @@ class Fesster {
     async userManager() {
         while (1) {
             for (let account of this.accounts) {
-                if (!account.sessionId) account = await this.userLogin(account);
-                account = await this.getUserInfo(account);
+                const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+                if (!account.sessionId) account = await this.userLogin(account, agent);
+                account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -431,10 +441,12 @@ class Fesster {
             let account = this.accounts.length > 0 ? this.accounts[0] : {};
             if (!account.sessionId) continue;
 
-            const leagues = await this.getLeagues(account);
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+
+            const leagues = await this.getLeagues(account, agent);
 
             for (const league of leagues) {
-                const is_ok = await this.getLeagueMatches(league, account);
+                const is_ok = await this.getLeagueMatches(league, account, agent);
                 let delay = this.isReady ? 1000 : 100;
                 if (!is_ok) delay = 5000;
                 await new Promise(resolve => setTimeout(resolve, delay));
