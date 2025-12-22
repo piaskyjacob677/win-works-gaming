@@ -1,5 +1,28 @@
 exports.filterEvents = (query, services) => {
-    const queryTerms = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+    let queryTerms = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+    let queryTermsCopy = [...queryTerms];
+    let rotNumbers = [];
+    let rotNumberIndex = -1;
+    for (let i = 0; i < queryTerms.length; i++) {
+        if (Number(queryTerms[i]) > 0) {
+            const rotNumber1 = Number(queryTerms[i]);
+            const rotNumber2 = rotNumber1 % 2 == 0 ? rotNumber1 - 1 : rotNumber1 + 1;
+
+            queryTerms[i] = `[${rotNumber1}]`;
+            rotNumbers.push(`[${rotNumber2}]`);
+            rotNumbers.push(`[${rotNumber1 + 1000}]`);
+            rotNumbers.push(`[${rotNumber2 + 1000}]`);
+            rotNumbers.push(`[${rotNumber1 + 2000}]`);
+            rotNumbers.push(`[${rotNumber2 + 2000}]`);
+            rotNumbers.push(`[${rotNumber1 + 3000}]`);
+            rotNumbers.push(`[${rotNumber2 + 3000}]`);
+            rotNumbers.push(`[${rotNumber1 + 4000}]`);
+            rotNumbers.push(`[${rotNumber2 + 4000}]`);
+            rotNumberIndex = i;
+            break;
+        }
+    }
+        
     const filteredEvents = [];
     for (const [service, events] of Object.entries(services)) {
         for (const [title, data] of Object.entries(events)) {
@@ -7,6 +30,14 @@ exports.filterEvents = (query, services) => {
                 const lowerTitle = title.toLocaleLowerCase().trim();
                 if (queryTerms.every(term => lowerTitle.includes(term))) {
                     filteredEvents.push({ service, title, ...data });
+                }
+                for (const [index, rotNumber] of rotNumbers.entries()) {
+                    if (index % 2 == 0 && (lowerTitle.endsWith("ml") || lowerTitle.endsWith("spread"))) continue;
+
+                    queryTermsCopy[rotNumberIndex] = rotNumber;
+                    if (queryTermsCopy.every(term => lowerTitle.includes(term))) {
+                        filteredEvents.push({ service, title, ...data });
+                    }
                 }
             }
             catch (error) {
@@ -51,7 +82,7 @@ exports.getFinalEvents = (query, services) => {
                     }
                 }
             } catch (error) {
-                console.error(error, title, data);
+                console.error(error, title, data, query);
             }
         }
     }

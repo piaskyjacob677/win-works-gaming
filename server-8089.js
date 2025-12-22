@@ -1,6 +1,8 @@
 const dotenv = require('dotenv');
 dotenv.config({ path: '.env-8089' });
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
+
 const Abcwager = require('./services/abcwager.js');
 const Action = require('./services/action.js');
 const Betwindycity = require('./services/betwindycity.js');

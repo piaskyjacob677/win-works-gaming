@@ -3,7 +3,7 @@
     {
       "username": "Qr3834",
       "password": "TEST",
-      "user_max": 95,
+      "user_max": 25,
       "service": "abcwager"
     }
   ],
@@ -25,7 +25,8 @@
     {
       "username": "Doc205",
       "password": "christian",
-      "user_max": 95
+      "user_max": 95,
+      "service": "betwindycity"
     }
   ],
   "fesster": [],
@@ -33,15 +34,16 @@
     {
       "username": "wp5023",
       "password": "Giants",
-      "user_max": 95
+      "user_max": 95,
+      "service": "1bv"
     }
   ],
   "highroller": [
     {
       "username": "WWG15",
       "password": "1",
-      "user_max": 95
-    }
+      "user_max": 95,
+      "service": "highroller"    }
   ],
   "strikerich": [
     {

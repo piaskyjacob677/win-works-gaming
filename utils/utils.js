@@ -1,7 +1,7 @@
 const { resolveApp } = require("../web/utils/path.js");
+const props = require(resolveApp("./constants/props.json"))
 const periods = require(resolveApp("./constants/periods.json"));
 const aliases = require(resolveApp("./constants/aliases.json"));
-const props = require(resolveApp("./constants/props.json"))
 
 exports.prettyLog = (service, sportCode, description, gameCount) => {
     const timestamp = new Date().toLocaleString().padEnd(22);
@@ -12,7 +12,6 @@ exports.prettyLog = (service, sportCode, description, gameCount) => {
 
     return `${timestamp} │ ${service} │ ${sportCode} │ ${description} │ ${gameCount}`;
 }
-
 exports.leagueNameCleaner = (sport, desc) => {
     const batches = [
         ["NFL", "national football league"],
@@ -57,7 +56,6 @@ exports.leagueNameCleaner = (sport, desc) => {
 
     return { sport, desc: desc.toUpperCase() || "GAME LINES" };
 }
-
 exports.getPeriod = (content) => {
     for (const [key, values] of Object.entries(periods)) {
         if (new RegExp(values.join("|"), "i").test(content)) {
@@ -66,7 +64,6 @@ exports.getPeriod = (content) => {
     }
     return "ft";
 }
-
 exports.getFullName = (sport, team) => {
     const batches = aliases[sport] || [];
     for (const batch of batches) {
@@ -76,7 +73,6 @@ exports.getFullName = (sport, team) => {
     }
     return null;
 }
-
 exports.teamNameCleaner = (team) => {
     team = team.replace(/\([A-Z]{1,3}\)/gi, "").replace(/[()]/gi, "");
     team = team.replace(/\b(team total|no ot|total goals|total points)\b/gi, "");
@@ -87,7 +83,6 @@ exports.teamNameCleaner = (team) => {
     team = team.replace("  ", " ").trim();
     return team;
 }
-
 exports.playerPropsCleaner = (sport, player) => {
     sport = sport == "CFB" ? "NFL" : sport == "CBB" ? "NBA" : sport == "WNBA" ? "NBA" : sport == "MiLB" ? "MLB" : sport;
     player = player.replace(new RegExp(" total| tot|:|-", "gi"), "").replace(/\s*\([A-Z]{2,5}\)/g, "");
@@ -107,7 +102,6 @@ exports.playerPropsCleaner = (sport, player) => {
     }
     return player.replace(/\s+/g, " ").trim();
 }
-
 exports.toleranceCheck = (bookPoints, bookOdds, inputPoints, inputOdds, pointsT, oddsT, marketName) => {
     bookPoints = parseFloat(bookPoints);
     bookOdds = parseFloat(bookOdds);

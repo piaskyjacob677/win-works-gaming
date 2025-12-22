@@ -181,7 +181,8 @@ class GeneralCtr {
                 service: req.body.service,
                 username: req.body.username,
                 password: req.body.password,
-                user_max: req.body.user_max
+                user_max: req.body.user_max,
+                proxy_url: req.body.proxy
             };
             let accounts = fs.readFileSync(resolveApp(`${process.env.DIR_DATA}/accounts.json`), "utf8");
             accounts = JSON.parse(accounts);
@@ -215,7 +216,7 @@ class GeneralCtr {
     }
     async getAccounts(req, res, next) {
         return catchAsync(async (req, res, next) => {
-            let accounts = this.service.services.reduce((prev, current) => [...prev, ...current.accounts.map(v => ({ ...v, service: current.serviceName }))], []);
+            let accounts = this.service.services.reduce((prev, current) => [...prev, ...current.accounts.map(({proxy_url, ...v}) => ({ ...v, service: current.serviceName, proxy: proxy_url}))], []);
             res.send(accounts);
         })(req, res, next)
     }

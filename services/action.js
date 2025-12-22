@@ -162,7 +162,7 @@ class Action {
             const viewStateGenerator = page.match(/name="__VIEWSTATEGENERATOR".*?value="([^"]+)"/)[1];
 
             const response = await fetch("https://backend.play23.ag/Login.aspx", {
-                "agent": agent,
+                agent: agent,
                 method: "POST",
                 headers: {
                     "content-type": "application/x-www-form-urlencoded",
