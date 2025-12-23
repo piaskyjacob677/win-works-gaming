@@ -54,6 +54,8 @@ exports.getFinalEvents = (query, services) => {
         for (const [title, data] of Object.entries(events)) {
             try {
                 if (data?.is_props == true) {
+                    if (!query.includes("@")) continue;
+                    
                     const sports = query.split("[")[0].trim();
                     const prefix = query.split("@")[0].split("]")[1].trim();
                     const suffix = "@" + query.split("@")[1].trim();
