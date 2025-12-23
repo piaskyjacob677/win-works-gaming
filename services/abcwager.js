@@ -4,6 +4,7 @@ const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsC
 const { JSDOM } = require("jsdom");
 const { resolveApp } = require("../web/utils/path.js");
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const { notify } = require("../utils/notify.js");
 
 class Abcwager {
     constructor() {
@@ -223,6 +224,161 @@ class Abcwager {
             console.log(this.serviceName, error, league);
         }
     }
+    async getViewState(account, leagueID, selection, agent) {
+        let viewState = null;
+        let viewStateGenerator = null;
+        let eventValidation = null;
+
+        await notify(`${this.serviceName} - ${account.username} getting view state`, "7807642696");
+
+        try {
+            const response = await fetch(`https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${leagueID}&wt=0&sel=${selection}`, {
+                "agent": agent,
+                "headers": {
+                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "accept-language": "en-US,en;q=0.9",
+                    "cache-control": "max-age=0",
+                    "priority": "u=0, i",
+                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "document",
+                    "sec-fetch-mode": "navigate",
+                    "sec-fetch-site": "same-origin",
+                    "sec-fetch-user": "?1",
+                    "upgrade-insecure-requests": "1",
+                    "cookie": `pl=; ASP.NET_SessionId=${account.sessionId}; idSiteCookie=tagAgentURL=http://www.abcwagering.ag`,
+                    "Referer": `https://wager.abcwagering.ag/wager/splitschedule.aspx?wt=0&lg=${leagueID}`
+                },
+                "body": null,
+                "method": "GET"
+            });
+            const data = await response.text();
+            viewState = data.match(/name="__VIEWSTATE".*?value="([^"]+)"/)[1];
+            viewStateGenerator = data.match(/name="__VIEWSTATEGENERATOR".*?value="([^"]+)"/)[1];
+            eventValidation = data.match(/name="__EVENTVALIDATION".*?value="([^"]+)"/)[1];
+
+        } catch (error) {
+            console.log(this.serviceName, error);
+        }
+        return { viewState, viewStateGenerator, eventValidation };
+    }
+    async createWager(account, leagueID, selection, stake, agent) {
+        let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(account, leagueID, selection, agent);
+
+        await notify(`${this.serviceName} - ${account.username} creating wager`, "7807642696");
+        try {
+            const response = await fetch(`https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${leagueID}&sel=${selection}&wt=0`, {
+                "agent": agent,
+                "headers": {
+                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "accept-language": "en-US,en;q=0.9",
+                    "cache-control": "max-age=0",
+                    "content-type": "application/x-www-form-urlencoded",
+                    "priority": "u=0, i",
+                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "document",
+                    "sec-fetch-mode": "navigate",
+                    "sec-fetch-site": "same-origin",
+                    "sec-fetch-user": "?1",
+                    "upgrade-insecure-requests": "1",
+                    "cookie": `pl=; ASP.NET_SessionId=${account.sessionId}; idSiteCookie=tagAgentURL=http://www.abcwagering.ag`,
+                    "Referer": `https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${leagueID}&wt=0&sel=${selection}`
+                },
+                "body": `__EVENTTARGET=&__EVENTARGUMENT=&__LASTFOCUS=&__VIEWSTATE=${encodeURIComponent(viewState)}&__VIEWSTATEGENERATOR=${encodeURIComponent(viewStateGenerator)}&__EVENTVALIDATION=${encodeURIComponent(eventValidation)}&BUY_${selection.split("_")[1]}_0=0&ctl00%24WagerContent%24chkPostBack=on&UseSameAmount=0&WAMT_=${stake}&ctl00%24WagerContent%24btn_Continue1=Continue&RISKWIN=0`,
+                "method": "POST"
+            });
+            const data = await response.text();
+            viewState = data.match(/name="__VIEWSTATE".*?value="([^"]+)"/)[1];
+            viewStateGenerator = data.match(/name="__VIEWSTATEGENERATOR".*?value="([^"]+)"/)[1];
+            eventValidation = data.match(/name="__EVENTVALIDATION".*?value="([^"]+)"/)[1];
+            if (data.includes("Your Current Wager Limit is")) {
+                stake = Number(data.match(/Your Current Wager Limit is ([0-9.]+)/)?.[1]?.replace(/[$,USD]/g, "").trim());
+                await notify(`${this.serviceName} - ${account.username} wager limit reached: ${stake}`, "7807642696");
+                return await this.createWager(account, leagueID, selection, stake);
+            }
+        }
+        catch (error) {
+            console.log(this.serviceName, error);
+        }
+        return { viewState, viewStateGenerator, eventValidation, stake };
+    }
+    async placebet(account, betslip, stake, pointsT, oddsT, agent, deep = 0) {
+        if (deep >= 2) return resolve({ service: this.serviceName, account, msg: "Max deep reached" });
+        if (account.sessionId == null) return { service: this.serviceName, account, msg: "Session expired" };
+
+        const selection = [...betslip.sel.split("_").slice(0, 2), betslip.points, betslip.odds].join("_");
+        const idmk = Number(selection[0]);
+
+        const result = await this.createWager(account, betslip.idlg, betslip.sel, stake, agent);
+        const viewState = result.viewState;
+        const viewStateGenerator = result.viewStateGenerator;
+        const eventValidation = result.eventValidation;
+        stake = result.stake;
+
+        await notify(`${this.serviceName} - ${account.username} confirming wager`, "7807642696");
+
+        try {
+            const response = await fetch("https://wager.abcwagering.ag/wager/ConfirmWager.aspx?WT=0", {
+                "agent": agent,
+                "headers": {
+                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "accept-language": "en-US,en;q=0.9",
+                    "cache-control": "max-age=0",
+                    "content-type": "application/x-www-form-urlencoded",
+                    "priority": "u=0, i",
+                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "document",
+                    "sec-fetch-mode": "navigate",
+                    "sec-fetch-site": "same-origin",
+                    "sec-fetch-user": "?1",
+                    "upgrade-insecure-requests": "1",
+                    "cookie": `pl=; ASP.NET_SessionId=${account.sessionId}; idSiteCookie=tagAgentURL=http://www.abcwagering.ag`,
+                    "Referer": `https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${betslip.idlg}&sel=${betslip.sel}`
+                },
+                "body": `__EVENTTARGET=&__EVENTARGUMENT=&__VIEWSTATE=${encodeURIComponent(viewState)}&__VIEWSTATEGENERATOR=${encodeURIComponent(viewStateGenerator)}&__EVENTVALIDATION=${encodeURIComponent(eventValidation)}&password=${account.password}&RMV_0=&ctl00%24WagerContent%24btn_Continue1=Continue`,
+                "method": "POST"
+            });
+            const data = await response.text();
+            const lineChange = data.match(/LineChange text-danger">([^<]+)</)?.[1]?.replace("&frac12;", ".5").replace("&frac14;", ".25").replace("&frac34;", ".75").trim();
+            if (lineChange) {
+                const points = String(Number(lineChange.match(/^[+-]?[0-9.]+/)));
+                const odds = String(Number(lineChange.match(/[+-]?[0-9.]+$/)));
+                if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, idmk == 2 || idmk == 3 ? "total" : "")) {
+                    await notify(`${this.serviceName} - ${account.username} game line change: ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}`, "7807642696");
+                    return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
+                }
+                return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, agent, deep + 1);
+            }
+            else {
+                const errorMsg = data.match(/The Following Error Occurred:[\s\S]*?<span id="ctl00_WagerContent_ctl00_lblError">([^<]+)</)?.[1]?.trim();
+                if (errorMsg) return { service: this.serviceName, account, msg: errorMsg };
+                return { service: this.serviceName, account, stake };
+            }
+        }
+        catch (error) {
+            return { service: this.serviceName, account, msg: error.message };
+        }
+    }
+    async place(betslip, stake, pointsT = 0, oddsT = 10) {
+        let outputs = [];
+        for (let account of this.accounts) {
+            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
+
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
+
+            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
+            outputs.push(result);
+            stake -= result.stake || 0;
+            if (stake <= 0) break;
+        }
+        return outputs;
+    }
     async userLogin(account, agent) {
         try {
             const response = await fetch("https://wager.abcwagering.ag/DefaultLogin.aspx", {
@@ -281,150 +437,6 @@ class Abcwager {
 
         return account;
     }
-    async getViewState(account, leagueID, selection, agent) {
-        let viewState = null;
-        let viewStateGenerator = null;
-        let eventValidation = null;
-
-        try {
-            const response = await fetch(`https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${leagueID}&wt=0&sel=${selection}`, {
-                "agent": agent,
-                "headers": {
-                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                    "accept-language": "en-US,en;q=0.9",
-                    "cache-control": "max-age=0",
-                    "priority": "u=0, i",
-                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": "\"Windows\"",
-                    "sec-fetch-dest": "document",
-                    "sec-fetch-mode": "navigate",
-                    "sec-fetch-site": "same-origin",
-                    "sec-fetch-user": "?1",
-                    "upgrade-insecure-requests": "1",
-                    "cookie": `pl=; ASP.NET_SessionId=${account.sessionId}; idSiteCookie=tagAgentURL=http://www.abcwagering.ag`,
-                    "Referer": `https://wager.abcwagering.ag/wager/splitschedule.aspx?wt=0&lg=${leagueID}`
-                },
-                "body": null,
-                "method": "GET"
-            });
-            const data = await response.text();
-            viewState = data.match(/name="__VIEWSTATE".*?value="([^"]+)"/)[1];
-            viewStateGenerator = data.match(/name="__VIEWSTATEGENERATOR".*?value="([^"]+)"/)[1];
-            eventValidation = data.match(/name="__EVENTVALIDATION".*?value="([^"]+)"/)[1];
-
-        } catch (error) {
-            console.log(this.serviceName, error);
-        }
-        return { viewState, viewStateGenerator, eventValidation };
-    }
-    async createWager(account, leagueID, selection, stake, agent) {
-        let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(account, leagueID, selection, agent);
-
-        try {
-            const response = await fetch(`https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${leagueID}&sel=${selection}&wt=0`, {
-                "agent": agent,
-                "headers": {
-                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                    "accept-language": "en-US,en;q=0.9",
-                    "cache-control": "max-age=0",
-                    "content-type": "application/x-www-form-urlencoded",
-                    "priority": "u=0, i",
-                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": "\"Windows\"",
-                    "sec-fetch-dest": "document",
-                    "sec-fetch-mode": "navigate",
-                    "sec-fetch-site": "same-origin",
-                    "sec-fetch-user": "?1",
-                    "upgrade-insecure-requests": "1",
-                    "cookie": `pl=; ASP.NET_SessionId=${account.sessionId}; idSiteCookie=tagAgentURL=http://www.abcwagering.ag`,
-                    "Referer": `https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${leagueID}&wt=0&sel=${selection}`
-                },
-                "body": `__EVENTTARGET=&__EVENTARGUMENT=&__LASTFOCUS=&__VIEWSTATE=${encodeURIComponent(viewState)}&__VIEWSTATEGENERATOR=${encodeURIComponent(viewStateGenerator)}&__EVENTVALIDATION=${encodeURIComponent(eventValidation)}&BUY_${selection.split("_")[1]}_0=0&ctl00%24WagerContent%24chkPostBack=on&UseSameAmount=0&WAMT_=${stake}&ctl00%24WagerContent%24btn_Continue1=Continue&RISKWIN=0`,
-                "method": "POST"
-            });
-            const data = await response.text();
-            viewState = data.match(/name="__VIEWSTATE".*?value="([^"]+)"/)[1];
-            viewStateGenerator = data.match(/name="__VIEWSTATEGENERATOR".*?value="([^"]+)"/)[1];
-            eventValidation = data.match(/name="__EVENTVALIDATION".*?value="([^"]+)"/)[1];
-            if (data.includes("Your Current Wager Limit is")) {
-                stake = Number(data.match(/Your Current Wager Limit is ([0-9.]+)/)?.[1]?.replace(/[$,USD]/g, "").trim());
-                return await this.createWager(account, leagueID, selection, stake);
-            }
-        }
-        catch (error) {
-            console.log(this.serviceName, error);
-        }
-        return { viewState, viewStateGenerator, eventValidation, stake };
-    }
-    async placebet(account, betslip, stake, pointsT, oddsT, agent, deep = 0) {
-        if (deep >= 2) return resolve({ service: this.serviceName, account, msg: "Max deep reached" });
-        if (account.sessionId == null) return { service: this.serviceName, account, msg: "Session expired" };
-
-        const selection = [...betslip.sel.split("_").slice(0, 2), betslip.points, betslip.odds].join("_");
-        const idmk = Number(selection[0]);
-
-        const result = await this.createWager(account, betslip.idlg, betslip.sel, stake, agent);
-        const viewState = result.viewState;
-        const viewStateGenerator = result.viewStateGenerator;
-        const eventValidation = result.eventValidation;
-        stake = result.stake;
-
-        try {
-            const response = await fetch("https://wager.abcwagering.ag/wager/ConfirmWager.aspx?WT=0", {
-                "agent": agent,
-                "headers": {
-                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                    "accept-language": "en-US,en;q=0.9",
-                    "cache-control": "max-age=0",
-                    "content-type": "application/x-www-form-urlencoded",
-                    "priority": "u=0, i",
-                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": "\"Windows\"",
-                    "sec-fetch-dest": "document",
-                    "sec-fetch-mode": "navigate",
-                    "sec-fetch-site": "same-origin",
-                    "sec-fetch-user": "?1",
-                    "upgrade-insecure-requests": "1",
-                    "cookie": `pl=; ASP.NET_SessionId=${account.sessionId}; idSiteCookie=tagAgentURL=http://www.abcwagering.ag`,
-                    "Referer": `https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${betslip.idlg}&sel=${betslip.sel}`
-                },
-                "body": `__EVENTTARGET=&__EVENTARGUMENT=&__VIEWSTATE=${encodeURIComponent(viewState)}&__VIEWSTATEGENERATOR=${encodeURIComponent(viewStateGenerator)}&__EVENTVALIDATION=${encodeURIComponent(eventValidation)}&password=${account.password}&RMV_0=&ctl00%24WagerContent%24btn_Continue1=Continue`,
-                "method": "POST"
-            });
-            const data = await response.text();
-            const lineChange = data.match(/LineChange text-danger">([^<]+)</)?.[1]?.replace("&frac12;", ".5").replace("&frac14;", ".25").replace("&frac34;", ".75").trim();
-            if (lineChange) {
-                const points = String(Number(lineChange.match(/^[+-]?[0-9.]+/)));
-                const odds = String(Number(lineChange.match(/[+-]?[0-9.]+$/)));
-                if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, idmk == 2 || idmk == 3 ? "total" : "")) {
-                    return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
-                }
-                return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, agent, deep + 1);
-            }
-            else {
-                const errorMsg = data.match(/The Following Error Occurred:[\s\S]*?<span id="ctl00_WagerContent_ctl00_lblError">([^<]+)</)?.[1]?.trim();
-                if (errorMsg) return { service: this.serviceName, account, msg: errorMsg };
-                return { service: this.serviceName, account, stake };
-            }
-        }
-        catch (error) {
-            return { service: this.serviceName, account, msg: error.message };
-        }
-    }
-    async place(betslip, stake, pointsT = 0, oddsT = 10) {
-        let outputs = [];
-        for (let account of this.accounts) {
-            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
-            const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
-            outputs.push(result);
-            stake -= result.stake || 0;
-            if (stake <= 0) break;
-        }
-        return outputs;
-    }
     async getUserInfo(account, agent) {
         try {
             const response = await fetch("https://wager.abcwagering.ag/wager/CreateSports.aspx?WT=0", {
@@ -464,7 +476,11 @@ class Abcwager {
         while (1) {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
-                if (!account.sessionId) account = await this.userLogin(account, agent);
+                if (!account.sessionId) {
+                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    account = await this.userLogin(account, agent);
+                    if (account.sessionId) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
@@ -489,7 +505,7 @@ class Abcwager {
             }
 
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`${process.env.DIR_EVENTS}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
 }

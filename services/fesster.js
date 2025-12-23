@@ -4,6 +4,7 @@ const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsC
 const { JSDOM } = require("jsdom");
 const { resolveApp } = require("../web/utils/path.js");
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const { notify } = require("../utils/notify.js");
 
 class Fesster {
     constructor() {
@@ -250,6 +251,8 @@ class Fesster {
         let viewStateGenerator = null;
         let eventValidation = null;
 
+        await notify(`${this.serviceName} - ${account.username} getting view state`, "7807642696");
+
         try {
             const response = await fetch(`https://m.blue987.com/wager/CreateWager.aspx?WT=0&lg=${leagueID}&sel=${selection}`, {
                 "agent": agent,
@@ -284,6 +287,8 @@ class Fesster {
     }
     async createWager(account, leagueID, selection, stake, agent) {
         let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(account, leagueID, selection, agent);
+
+        await notify(`${this.serviceName} - ${account.username} creating wager`, "7807642696");
 
         try {
             const response = await fetch(`https://m.blue987.com/wager/CreateWager.aspx?WT=0&lg=${leagueID}&sel=${selection}`, {
@@ -334,6 +339,8 @@ class Fesster {
         const eventValidation = result.eventValidation;
         stake = result.stake;
 
+        await notify(`${this.serviceName} - ${account.username} confirming wager`, "7807642696");
+
         try {
             const response = await fetch("https://m.blue987.com/wager/ConfirmWager.aspx?WT=0", {
                 "agent": agent,
@@ -383,7 +390,9 @@ class Fesster {
         let outputs = [];
         for (let account of this.accounts) {
             const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
             const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
+            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
@@ -427,7 +436,11 @@ class Fesster {
         while (1) {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
-                if (!account.sessionId) account = await this.userLogin(account, agent);
+                if (!account.sessionId) {
+                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    account = await this.userLogin(account, agent);
+                    if (account.sessionId) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
@@ -453,7 +466,7 @@ class Fesster {
             }
 
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`${process.env.DIR_EVENTS}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
 }

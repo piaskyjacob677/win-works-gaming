@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { resolveApp } = require("../web/utils/path.js");
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const { notify } = require("../utils/notify.js");
 
 class Godds {
     constructor(domain = "gotocasino.ag") {
@@ -203,7 +204,7 @@ class Godds {
     }
     async userLogin(account, agent) {
         try {
-            const response = await fetch(`https://${this.domain}/Actions/api/Login/PlayerLogin?player=${account.username}&password=${account.password}&domain=https://${this.domain}`,{
+            const response = await fetch(`https://${this.domain}/Actions/api/Login/PlayerLogin?player=${account.username}&password=${account.password}&domain=https://${this.domain}`, {
                 "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
@@ -233,7 +234,7 @@ class Godds {
 
         return account;
     }
-    placebet(account, betslip, stake, pointsT, oddsT, agent) {
+    async placebet(account, betslip, stake, pointsT, oddsT, agent) {
         if (account.playerToken == null) return { service: this.serviceName, account, msg: "Player token expired" };
 
         let matchOdd = {
@@ -297,9 +298,9 @@ class Godds {
             }
         }
 
-        return new Promise((resolve, reject) => {
-            fetch(`https://${this.domain}/Actions/api/Betting/SaveBet`, {
-                "agent": agent,
+        try {
+            const response = await fetch(`https://${this.domain}/Actions/api/Betting/SaveBet`, {
+                // "agent": agent,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
                     "accept-language": "en-US,en;q=0.9",
@@ -321,40 +322,44 @@ class Godds {
                 "method": "POST",
                 "mode": "cors",
                 "credentials": "include"
-            }).then(r => r.text()).then(r => {
-                try {
-                    const res = JSON.parse(r);
-                    if (res[0].httpStatusCode == 200) {
-                        resolve({ service: this.serviceName, account, stake });
-                    }
-                    else {
-                        const errorMsg = res[0].errorResponse.errorMessage;
-                        if (errorMsg.includes("line change")) {
-                            const currentMatch = res[0].errorResponse.gameLists.differentGames[0];
-                            const points = currentMatch.matchOdd.numberPoints;
-                            const odds = currentMatch.matchOdd.odds;
-                            if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, betslip.stl == 1 ? "total" : "")) {
-                                resolve({ service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` });
-                            }
-                            this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT).then(resolve);
-                        }
-                        else if (errorMsg.includes("Your current limit is")) {
-                            stake = Number(errorMsg.match(/Your current limit is ([0-9.]+)/)?.[1]?.replace(/[$,USD]/g, "").trim());
-                            this.placebet(account, betslip, stake, pointsT, oddsT).then(resolve);
-                        }
-                        else resolve({ service: this.serviceName, account, msg: errorMsg });
-                    }
-                } catch (error) {
-                    resolve({ service: this.serviceName, account, msg: error.message });
-                }
             });
-        })
+            const data = await response.text();
+            const res = JSON.parse(data);
+
+            if (res[0].httpStatusCode == 200) {
+                return { service: this.serviceName, account, stake };
+            }
+            else {
+                const errorMsg = res[0].errorResponse.errorMessage;
+                if (errorMsg.includes("line change")) {
+                    const currentMatch = res[0].errorResponse.gameLists.differentGames[0];
+                    const points = currentMatch.matchOdd.numberPoints;
+                    const odds = currentMatch.matchOdd.odds;
+                    if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, betslip.stl == 1 ? "total" : "")) {
+                        await notify(`${this.serviceName} - ${account.username} game line change: ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}`, "7807642696");
+                        return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
+                    }
+                    return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT);
+                }
+                else if (errorMsg.includes("Your current limit is")) {
+                    stake = Number(errorMsg.match(/Your current limit is ([0-9.]+)/)?.[1]?.replace(/[$,USD]/g, "").trim());
+                    await notify(`${this.serviceName} - ${account.username} wager limit reached: $${stake}`, "7807642696");
+                    return await this.placebet(account, betslip, stake, pointsT, oddsT);
+                }
+                else return { service: this.serviceName, account, msg: errorMsg };
+            }
+        }
+        catch (error) {
+            return { service: this.serviceName, account, msg: error.message };
+        }
     }
     async place(betslip, stake, pointsT = 0, oddsT = 10) {
         let outputs = [];
         for (let account of this.accounts) {
             const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
             const result = await this.placebet(account, betslip, Math.max(Math.min(stake, account.user_maxWager, account.user_max), account.minWager), pointsT, oddsT, agent);
+            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
@@ -405,7 +410,11 @@ class Godds {
         while (1) {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
-                if (!account.playerToken) account = await this.userLogin(account, agent);
+                if (!account.playerToken) {
+                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    account = await this.userLogin(account, agent);
+                    if (account.playerToken) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
@@ -431,7 +440,7 @@ class Godds {
             }
 
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`${process.env.DIR_EVENTS}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
     async openBets(playerToken) {

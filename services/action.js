@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsCleaner, toleranceCheck, prettyLog } = require("../utils/utils.js");
 const { resolveApp } = require("../web/utils/path.js");
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const { notify } = require("../utils/notify.js");
 
 class Action {
     constructor() {
@@ -224,6 +225,8 @@ class Action {
             }
         }];
 
+        await notify(`${this.serviceName} - ${account.username} confirming wager`, "7807642696");
+
         try {
             const response = await fetch("https://backend.action23.ag/wager/ConfirmWagerHelper.aspx", {
                 "agent": agent,
@@ -273,6 +276,8 @@ class Action {
         if (confirmWagerResult.errorMsg) return { service: this.serviceName, account, msg: confirmWagerResult.errorMsg };
 
         stake = confirmWagerResult.stake;
+
+        await notify(`${this.serviceName} - ${account.username} posting wager`, "7807642696");
 
         try {
             const detailedData = [{ 
@@ -330,6 +335,7 @@ class Action {
                 const points = wagerResult.details[0].details[0].OriginalPoints;
                 const odds = wagerResult.details[0].details[0].OriginalOdds;
                 if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, betslip.idmk == 2 || betslip.idmk == 3 ? "total" : "")) {
+                    await notify(`${this.serviceName} - ${account.username} game line change: ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}`, "7807642696");
                     return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
                 }
                 this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, agent, deep + 1).then(resolve);
@@ -348,7 +354,9 @@ class Action {
         let outputs = [];
         for (let account of this.accounts) {
             const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
             const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
+            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
@@ -394,7 +402,11 @@ class Action {
         while (1) {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
-                if (!account.sessionId) account = await this.userLogin(account, agent);
+                if (!account.sessionId) {
+                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    account = await this.userLogin(account, agent);
+                    if (account.sessionId) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
@@ -419,7 +431,7 @@ class Action {
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`${process.env.DIR_EVENTS}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
 }

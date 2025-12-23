@@ -4,6 +4,7 @@ const { leagueNameCleaner, getPeriod, getFullName, teamNameCleaner, playerPropsC
 const { JSDOM } = require("jsdom");
 const { resolveApp } = require("../web/utils/path.js");
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const { notify } = require("../utils/notify.js");
 
 class Highroller {
     constructor() {
@@ -282,6 +283,8 @@ class Highroller {
         let viewStateGenerator = null;
         let eventValidation = null;
 
+        await notify(`${this.serviceName} - ${account.username} getting view state`, "7807642696");
+
         try {
             const response = await fetch(`https://www.thehighroller.net/wager/CreateWager.aspx?WT=0&lg=${leagueID}&sel=${selection}_${selection}`, {
                 "agent": agent,
@@ -315,6 +318,8 @@ class Highroller {
     }
     async createWager(cookie, leagueID, selection, stake, agent) {
         let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(cookie, leagueID, selection);
+
+        await notify(`${this.serviceName} - ${account.username} creating wager`, "7807642696");
 
         try {
             const response = await fetch(`https://www.thehighroller.net/wager/CreateWager.aspx?WT=0&lg=${leagueID}&sel=${selection}_${selection}`, {
@@ -372,6 +377,8 @@ class Highroller {
 
         if (errorMsg) return { service: this.serviceName, account, msg: errorMsg };
 
+        await notify(`${this.serviceName} - ${account.username} confirming wager`, "7807642696");
+
         try {
             const response = await fetch("https://www.thehighroller.net/wager/ConfirmWager.aspx?WT=0", {
                 "agent": agent,
@@ -401,6 +408,7 @@ class Highroller {
                 const points = String(Number(lineChange.match(/^[+-]?[0-9.]+/)));
                 const odds = String(Number(lineChange.match(/[+-]?[0-9.]+$/)));
                 if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, idmk == 2 || idmk == 3 ? "total" : "")) {
+                    await notify(`${this.serviceName} - ${account.username} game line change: ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}`, "7807642696");
                     return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
                 }
                 return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, agent)
@@ -419,7 +427,9 @@ class Highroller {
         let outputs = [];
         for (let account of this.accounts) {
             const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
             const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
+            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
@@ -465,7 +475,11 @@ class Highroller {
         while (1) {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
-                if (!account.cookie) account = await this.userLogin(account, agent);
+                if (!account.cookie) {
+                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    account = await this.userLogin(account, agent);
+                    if (account.cookie) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
@@ -491,7 +505,7 @@ class Highroller {
             }
 
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`${process.env.DIR_EVENTS}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
 }
