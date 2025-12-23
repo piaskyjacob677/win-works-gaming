@@ -8,6 +8,9 @@ const Highroller = require('./services/highroller.js');
 const emojis = require('./constants/emojis.json');
 
 const TelegramBot = require('node-telegram-bot-api');
+const dns = require('dns');
+
+dns.setDefaultResultOrder('ipv4first');
 
 // Production
 const TELEGRAM_TOKEN = "8124439446:AAFsOX3DLoXIBfLkcdzvXOX60H_n2kaAmXw";
@@ -16,7 +19,7 @@ const TELEGRAM_TOKEN = "8124439446:AAFsOX3DLoXIBfLkcdzvXOX60H_n2kaAmXw";
 // const TELEGRAM_TOKEN = "8487868778:AAEIpKN3mT2ZDVgg5vPIpPyCNn7mVbHr6Ao";
 
 const chatIdList = ["-1002599703886"]; //"-1002599703886", "7807642696", "7003045533"
-const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: false });
 
 class Server {
     constructor() {
