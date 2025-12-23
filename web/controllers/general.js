@@ -3,6 +3,7 @@ const catchAsync = require("../utils/catchAsync");
 const { resolveApp } = require("../utils/path");
 const parse = require('../../utils/parse.js');
 const { filterEvents, getFinalEvents } = require('../../utils/handler.js');
+const { notify } = require('../../utils/notify.js');
 
 class GeneralCtr {
     constructor(service) {
@@ -51,11 +52,12 @@ class GeneralCtr {
                 return;
             }
             
-            let history = fs.readFileSync(resolveApp(`${process.env.DIR_DATA}/history.json`), "utf8");
+            let history = fs.readFileSync(resolveApp(`./data/${process.env.USER_PORT}}/history.json`), "utf8");
             history = JSON.parse(history);
             let totalStake = amount;
             for (const event of finalEvents) {
                 if (totalStake <= 0) break;
+                await notify(`${event.serviceName} - ${event.title} placing bet: $${totalStake}`, "7807642696");
                 const service = this.service.services.find(service => service.serviceName == event.serviceName);
                 const results = await service.place(event, totalStake, pointTolerance, oddsTolerance);
                 finalResults.push(...results);
@@ -70,7 +72,7 @@ class GeneralCtr {
                     outputs: results,
                 });
             }
-            fs.writeFileSync(resolveApp(`${process.env.DIR_DATA}/history.json`), JSON.stringify(history.slice(-100)));
+            fs.writeFileSync(resolveApp(`./data/${process.env.USER_PORT}}/history.json`), JSON.stringify(history.slice(-100)));
             res.send(finalResults);
         })(req, res, next)
     }
@@ -87,7 +89,7 @@ class GeneralCtr {
     async prebet(req, res, next) {
         return catchAsync(async (req, res, next) => {
             const { input } = req.body;
-            let history = fs.readFileSync(resolveApp(`${process.env.DIR_DATA}/history.json`), "utf8");
+            let history = fs.readFileSync(resolveApp(`./data/${process.env.USER_PORT}}/history.json`), "utf8");
             history = JSON.parse(history);
 
             const parsedSignal = parse.main(input);
@@ -146,7 +148,7 @@ class GeneralCtr {
         return catchAsync(async (req, res, next) => {
             const { input, betslips } = req.body;
             if (betslips.length == 0) return res.status(400).send("No betslips provided!");
-            let history = fs.readFileSync(resolveApp(`${process.env.DIR_DATA}/history.json`), "utf8");
+            let history = fs.readFileSync(resolveApp(`./data/${process.env.USER_PORT}}/history.json`), "utf8");
             history = JSON.parse(history);
             if (history.find(v => v.kind == "Global" && v.input == input)) return res.status(400).send("Input already exists in history!");
             let outputs = [];
@@ -164,13 +166,13 @@ class GeneralCtr {
                 betslips: betslips,
                 outputs: outputs,
             });
-            fs.writeFileSync(resolveApp(`${process.env.DIR_DATA}/history.json`), JSON.stringify(history.slice(-100)));
+            fs.writeFileSync(resolveApp(`./data/${process.env.USER_PORT}}/history.json`), JSON.stringify(history.slice(-100)));
             res.send(outputs);
         })(req, res, next)
     }
     async getHistory(req, res, next) {
         return catchAsync(async (req, res, next) => {
-            let history = fs.readFileSync(resolveApp(`${process.env.DIR_DATA}/history.json`), "utf8");
+            let history = fs.readFileSync(resolveApp(`./data/${process.env.USER_PORT}}/history.json`), "utf8");
             history = JSON.parse(history);
             res.send(history);
         })(req, res, next)
@@ -184,7 +186,7 @@ class GeneralCtr {
                 user_max: req.body.user_max,
                 proxy_url: req.body.proxy
             };
-            let accounts = fs.readFileSync(resolveApp(`${process.env.DIR_DATA}/accounts.json`), "utf8");
+            let accounts = fs.readFileSync(resolveApp(`./data/${process.env.USER_PORT}}/accounts.json`), "utf8");
             accounts = JSON.parse(accounts);
             let index = accounts[account.service].findIndex(v => v.username.toLowerCase().trim() == account.username.toLowerCase().trim());
             if (type == "create" && index != -1) return res.status(400).send("Account already exists!");
@@ -193,7 +195,7 @@ class GeneralCtr {
                 ...accounts[account.service][index],
                 ...account,
             };
-            fs.writeFileSync(resolveApp(`${process.env.DIR_DATA}/accounts.json`), JSON.stringify(accounts, null, 2));
+            fs.writeFileSync(resolveApp(`./data/${process.env.USER_PORT}}/accounts.json`), JSON.stringify(accounts, null, 2));
             index = this.service.services.find(v => v.serviceName == account.service).accounts.findIndex(v => v.username.toLowerCase().trim() == account.username.toLowerCase().trim());
             if (index == -1) this.service.services.find(v => v.serviceName == account.service).accounts.push(account);
             else this.service.services.find(v => v.serviceName == account.service).accounts[index] = {
@@ -206,10 +208,10 @@ class GeneralCtr {
     async deleteAccount(req, res, next) {
         return catchAsync(async (req, res, next) => {
             const account = req.body;
-            let accounts = fs.readFileSync(resolveApp(`${process.env.DIR_DATA}/accounts.json`), "utf8");
+            let accounts = fs.readFileSync(resolveApp(`./data/${process.env.USER_PORT}}/accounts.json`), "utf8");
             accounts = JSON.parse(accounts);
             accounts[account.service] = accounts[account.service].filter(v => v.username.toLowerCase().trim() != account.username.toLowerCase().trim());
-            fs.writeFileSync(resolveApp(`${process.env.DIR_DATA}/accounts.json`), JSON.stringify(accounts, null, 2));
+            fs.writeFileSync(resolveApp(`./data/${process.env.USER_PORT}}/accounts.json`), JSON.stringify(accounts, null, 2));
             this.service.services.find(v => v.serviceName == account.service).accounts = accounts[account.service];
             res.send("Successfully deleted account!");
         })(req, res, next)

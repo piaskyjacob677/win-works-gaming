@@ -11,7 +11,7 @@ const Godds = require('./services/godds.js');
 const Highroller = require('./services/highroller.js');
 
 const { resolveApp } = require("./web/utils/path.js");
-const accounts = require(resolveApp(`${process.env.DIR_DATA}/accounts.json`));
+const accounts = require(resolveApp(`./data/${process.env.USER_PORT}}/accounts.json`));
 
 class Server {
     constructor() {
