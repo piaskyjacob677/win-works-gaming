@@ -1,9 +1,4 @@
-const Abcwager = require('./services/abcwager.js');
-const Action = require('./services/action.js');
-const Betwindycity = require('./services/betwindycity.js');
-const Fesster = require('./services/fesster.js');
 const Godds = require('./services/godds.js');
-const Highroller = require('./services/highroller.js');
 
 const emojis = require('./constants/emojis.json');
 
@@ -14,11 +9,12 @@ dns.setDefaultResultOrder('ipv4first');
 
 // Production
 const TELEGRAM_TOKEN = "8124439446:AAFsOX3DLoXIBfLkcdzvXOX60H_n2kaAmXw";
+const chatId = "-1002599703886";
 
 // Test
 // const TELEGRAM_TOKEN = "8487868778:AAEIpKN3mT2ZDVgg5vPIpPyCNn7mVbHr6Ao";
+// const chatId = "7807642696";
 
-const chatIdList = ["-1002599703886"]; //"-1002599703886", "7807642696", "7003045533"
 const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: false });
 
 class Server {
@@ -55,9 +51,7 @@ class Server {
         });
     }
     async sendMessageToChannel(msg) {
-        for (const chatId of chatIdList) {
-            await bot.sendMessage(chatId, msg, { parse_mode: "HTML" });
-        }
+        await bot.sendMessage(chatId, msg, { parse_mode: "HTML" });
     }
     async errorHandler(error) {
         console.log(error.message);
