@@ -9,9 +9,10 @@ const Betwindycity = require('./services/betwindycity.js');
 const Fesster = require('./services/fesster.js');
 const Godds = require('./services/godds.js');
 const Highroller = require('./services/highroller.js');
+const Buckeye = require('./services/buckeye.js');
 
 const { resolveApp } = require("./web/utils/path.js");
-const accounts = require(resolveApp(`./data/${process.env.USER_PORT}}/accounts.json`));
+const accounts = require(resolveApp(`./data/${process.env.USER_PORT}/accounts.json`));
 
 class Server {
     constructor() {
@@ -22,6 +23,7 @@ class Server {
             new Godds(),
             new Betwindycity(),
             new Highroller(),
+            new Buckeye(),
         ];
     }
     init() {

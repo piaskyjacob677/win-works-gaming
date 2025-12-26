@@ -505,7 +505,7 @@ class Abcwager {
             }
 
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
 }

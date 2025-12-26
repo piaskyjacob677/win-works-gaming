@@ -13,6 +13,14 @@ class Betwindycity {
         this.matches = {};
         this.accounts = [];
     }
+    getBestLine(lines) {
+        if (!lines) return null;
+        let bestLine = { o: 999 };
+        for (const line of lines) {
+            if (Math.abs(line.o + 110) < Math.abs(bestLine.o + 110)) bestLine = line;
+        }
+        return bestLine?.i;
+    }
     async getLeagues(token, agent) {
         let leagues = [];
         try {
@@ -62,14 +70,6 @@ class Betwindycity {
             console.log(this.serviceName, error);
         }
         return leagues;
-    }
-    getBestLine(lines) {
-        if (!lines) return null;
-        let bestLine = { o: 999 };
-        for (const line of lines) {
-            if (Math.abs(line.o + 110) < Math.abs(bestLine.o + 110)) bestLine = line;
-        }
-        return bestLine?.i;
     }
     async getLeagueMatches(league, token, agent) {
         try {
@@ -235,52 +235,6 @@ class Betwindycity {
             console.log(this.serviceName, error, league);
         }
     }
-    async userLogin(account, agent) {
-        try {
-            const response = await fetch("https://betwindycity.com/player-api/identity/CustomerLoginRedir?RedirToHome=1", {
-                "agent": agent,
-                "headers": {
-                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                    "accept-language": "en-US,en;q=0.9",
-                    "cache-control": "max-age=0",
-                    "content-type": "application/x-www-form-urlencoded",
-                    "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": "\"Windows\"",
-                    "sec-fetch-dest": "document",
-                    "sec-fetch-mode": "navigate",
-                    "sec-fetch-site": "same-origin",
-                    "sec-fetch-user": "?1",
-                    "upgrade-insecure-requests": "1",
-                    "Referer": "https://betwindycity.com/"
-                },
-                "body": `customerid=${account.username}&password=${account.password}&submit2=Login`,
-                "method": "POST",
-                "redirect": "manual"
-            });
-
-            const { location } = response.headers.raw();
-            const token = location[0].split("=")[1];
-
-            const response2 = await fetch("https://betwindycity.com/player-api/identity/customerLoginFromToken", {
-                "agent": agent,
-                "headers": {
-                    "accept": "application/json, text/plain, */*",
-                    "content-type": "application/json",
-                    "Referer": "https://betwindycity.com/v2/"
-                },
-                "body": "{\"token\":\"" + token + "\",\"version\":\"1.3.47\"}",
-                "method": "POST"
-            });
-            const data2 = await response2.json();
-            account.token = data2.AccessToken;
-
-        } catch (error) {
-            console.log(this.serviceName, error);
-        }
-
-        return account;
-    }
     async saveBet(token, selection, stake, agent) {
         const list = {
             "CaptchaMessage": null,
@@ -388,6 +342,52 @@ class Betwindycity {
         }
         return outputs;
     }
+    async userLogin(account, agent) {
+        try {
+            const response = await fetch("https://betwindycity.com/player-api/identity/CustomerLoginRedir?RedirToHome=1", {
+                "agent": agent,
+                "headers": {
+                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "accept-language": "en-US,en;q=0.9",
+                    "cache-control": "max-age=0",
+                    "content-type": "application/x-www-form-urlencoded",
+                    "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "document",
+                    "sec-fetch-mode": "navigate",
+                    "sec-fetch-site": "same-origin",
+                    "sec-fetch-user": "?1",
+                    "upgrade-insecure-requests": "1",
+                    "Referer": "https://betwindycity.com/"
+                },
+                "body": `customerid=${account.username}&password=${account.password}&submit2=Login`,
+                "method": "POST",
+                "redirect": "manual"
+            });
+
+            const { location } = response.headers.raw();
+            const token = location[0].split("=")[1];
+
+            const response2 = await fetch("https://betwindycity.com/player-api/identity/customerLoginFromToken", {
+                "agent": agent,
+                "headers": {
+                    "accept": "application/json, text/plain, */*",
+                    "content-type": "application/json",
+                    "Referer": "https://betwindycity.com/v2/"
+                },
+                "body": "{\"token\":\"" + token + "\",\"version\":\"1.3.47\"}",
+                "method": "POST"
+            });
+            const data2 = await response2.json();
+            account.token = data2.AccessToken;
+
+        } catch (error) {
+            console.log(this.serviceName, error);
+        }
+
+        return account;
+    }
     async getUserInfo(account, agent) {
         try {
             const response = await fetch("https://betwindycity.com/player-api/api/customer/balance", {
@@ -453,7 +453,7 @@ class Betwindycity {
             }
 
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
 }

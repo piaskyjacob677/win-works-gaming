@@ -1,478 +1,183 @@
-const fs = require('fs');
+const fetch = require("node-fetch");
 
-const TelegramBot = require('node-telegram-bot-api');
-const parseSignal = require('./utils/parseSignal.js');
+async function checkWagerLineMulti(account, betslip, stake) {
+  const { customerID, Store, CustProfile, token } = account;
+  const { GameNum, PeriodNumber, Status, PeriodDescription, description, wagerType } = betslip;
 
-const accounts = require("./data/accounts.json");
-const Action = require('./services/action.js');
-const Godds = require('./services/godds.js');
-const Strikerich = require('./services/strikerich.js');
-const Highroller = require('./services/highroller.js');
-const Fesster = require('./services/fesster.js');
-const Betwindycity = require('./services/betwindycity.js');
-const Abcwager = require('./services/abcwager.js');
+  const v = Math.round(stake * (Math.abs(betslip.odds) / 100));
+  let risk = v, win = stake;
+  if (betslip.odds >= 100) risk = stake, win = v;
 
-let tolerances = require("./data/tolerances.json");
-let stakeAmounts = require("./data/stakeAmounts.json");
+  const c = {
+    position: Math.floor(1e8 * Math.random() + 1),
+    gameNum: GameNum,
+    contestantNum: 0,
+    periodNumber: PeriodNumber,
+    store: Store.trim(),
+    status: Status,
+    profile: CustProfile.trim(),
+    periodType: PeriodDescription,
+    description: description,
+    risk: risk.toString(),
+    win: win.toString(),
+    wagerType: wagerType
+  };
 
-require('dotenv').config();
-
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const ALLOWED_CHATID = process.env.ALLOWED_CHATID ? process.env.ALLOWED_CHATID.split(",") : [];
-const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
-
-class Server {
-    constructor() {
-        this.stakeAmountCount = 3;
-        this.stakeChoice = 1;
-        this.confirmMode = false;
-        this.placedTickets = [];
-        this.services = [
-            new Action(),
-            new Highroller(),
-            new Betwindycity(),
-            new Abcwager(),
-            // new Godds(),
-            // new Fesster(),
-            // new Strikerich(),
-        ];
-    }
-    init() {
-        for (const service of this.services) {
-            service.userManager();
-            service.main();
-        }
-        this.handleProcessError();
-        this.botRunner();
-    }
-    handleProcessError() {
-        process.on('unhandledRejection', (reason, promise) => {
-            console.log(new Date().toLocaleString(), 'Unhandled Rejection at:', promise, 'reason:', reason);
-        });
-        process.on('uncaughtException', (err) => {
-            console.log(new Date().toLocaleString(), 'Uncaught Exception:', err);
-        });
-        process.on('uncaughtExceptionMonitor', (err) => {
-            console.log(new Date().toLocaleString(), 'Uncaught Exception Monitor:', err);
-        });
-        process.on('rejectionHandled', (promise) => {
-            console.log(new Date().toLocaleString(), 'Rejection Handled:', promise);
-        });
-        process.on('warning', (warning) => {
-            console.log(new Date().toLocaleString(), 'Warning:', warning);
-        });
-    }
-    async commandTolerances(msg) {
-        const chatId = msg.chat.id;
-
-        if (!ALLOWED_CHATID.includes(chatId.toString())) {
-            await bot.sendMessage(chatId, "You are not authorized to use this bot.");
-            await this.sendMessageToChannel(`A person with ${chatId} attempted to use this bot.`);
-            return;
-        }
-
-        const keyboard = [
-            [
-                { text: "Sports", callback_data: "n/a" },
-                { text: "Points", callback_data: "n/a" },
-                { text: "Cents", callback_data: "n/a" }
-            ]
-        ];
-
-        for (const sportName of Object.keys(tolerances.Points)) {
-            keyboard.push([
-                { text: sportName, callback_data: "n/a" },
-                { text: tolerances.Points[sportName].toString(), callback_data: `tolerance_Points_${sportName}` },
-                { text: tolerances.Cents[sportName].toString(), callback_data: `tolerance_Cents_${sportName}` }
-            ]);
-        }
-
-        const replyMarkup = { inline_keyboard: keyboard };
-        await bot.sendMessage(chatId, "Points & Cents Tolerance", { reply_markup: replyMarkup });
-    }
-    async commandTolerancesValue(callbackQuery) {
-        const query = callbackQuery;
-        await bot.answerCallbackQuery(query.id);
-
-        const queryData = query.data;
-        const parts = queryData.split("_");
-        const tolerType = parts[parts.length - 2];
-        const sportName = parts[parts.length - 1];
-
-        const toleranceOptions = {
-            "Points": [
-                [0.0, 0.5, 1.0, 1.5, 2.0],
-                [2.5, 3.0, 3.5, 4.0, 4.5],
-                [5.0, 5.5, 6.0, 6.5, 7.0],
-                [7.5, 8.0, 8.5, 9.0, 9.5]
-            ],
-            "Cents": [
-                [5, 10, 15, 20, 25],
-                [30, 35, 40, 45, 50]
-            ]
-        };
-
-        const keyboard = [];
-        for (let row = 0; row < toleranceOptions[tolerType].length; row++) {
-            const rowKeyboard = [];
-            for (let col = 0; col < 5; col++) {
-                const value = toleranceOptions[tolerType][row][col];
-                rowKeyboard.push({
-                    text: value.toString(),
-                    callback_data: `toleranceValue_${tolerType}_${sportName}_${value}`
-                });
-            }
-            keyboard.push(rowKeyboard);
-        }
-
-        const replyMarkup = { inline_keyboard: keyboard };
-        await bot.editMessageText(
-            `${sportName} ${tolerType} Tolerance`,
-            {
-                chat_id: query.message.chat.id,
-                message_id: query.message.message_id,
-                reply_markup: replyMarkup
-            }
-        );
-    }
-    async commandStakeAmounts(msg) {
-        const chatId = msg.chat.id;
-
-        if (!ALLOWED_CHATID.includes(chatId.toString())) {
-            await bot.sendMessage(chatId, "You are not authorized to use this bot.");
-            await this.sendMessageToChannel(`A person with ${chatId} attempted to use this bot.`);
-            return;
-        }
-
-        const keyboard = [];
-
-        const headerRow = [{ text: "Sports", callback_data: "n/a" }];
-        for (let index = 0; index < this.stakeAmountCount; index++) {
-            headerRow.push({ text: `${index + 1}`, callback_data: "n/a" });
-        }
-        keyboard.push(headerRow);
-
-        for (const sportName of Object.keys(stakeAmounts[0])) {
-            const row = [{ text: sportName, callback_data: "n/a" }];
-            for (let index = 0; index < this.stakeAmountCount; index++) {
-                row.push({
-                    text: `$${stakeAmounts[index][sportName]}`,
-                    callback_data: `stakeAmounts_${index}_${sportName}`
-                });
-            }
-            keyboard.push(row);
-        }
-
-        const replyMarkup = { inline_keyboard: keyboard };
-        await bot.sendMessage(chatId, "Stake Amounts", { reply_markup: replyMarkup });
-    }
-    async commandStakeAmountsValue(callbackQuery) {
-        const query = callbackQuery;
-        await bot.answerCallbackQuery(query.id);
-
-        const queryData = query.data;
-        const parts = queryData.split("_");
-        const index = parseInt(parts[parts.length - 2]);
-        const sportName = parts[parts.length - 1];
-
-        const stakeAmountOptions = [
-            [0, 10, 25, 50],
-            [100, 250, 500, 750],
-            [1000, 1500, 2000, 2500],
-            [3000, 3500, 4000, 4500],
-            [5000, 6000, 7500, 10000]
-        ];
-
-        const keyboard = [];
-        for (let row = 0; row < 5; row++) {
-            const rowKeyboard = [];
-            for (let col = 0; col < 4; col++) {
-                const value = stakeAmountOptions[row][col];
-                rowKeyboard.push({
-                    text: value.toString(),
-                    callback_data: `stakeAmountValue_${index}_${sportName}_${value}`
-                });
-            }
-            keyboard.push(rowKeyboard);
-        }
-
-        const replyMarkup = { inline_keyboard: keyboard };
-        await bot.editMessageText(
-            `${sportName} Stake ${index + 1}`,
-            {
-                chat_id: query.message.chat.id,
-                message_id: query.message.message_id,
-                reply_markup: replyMarkup
-            }
-        );
-    }
-    async commandStakeChoice(msg) {
-        const chatId = msg.chat.id;
-
-        if (!ALLOWED_CHATID.includes(chatId.toString())) {
-            await bot.sendMessage(chatId, "You are not authorized to use this bot.");
-            await this.sendMessageToChannel(`A person with ${chatId} attempted to use this bot.`);
-            return;
-        }
-
-        const keyboard = [];
-        for (let index = 0; index < this.stakeAmountCount; index++) {
-            keyboard.push({
-                text: `${index + 1}`,
-                callback_data: `stakeChoice_${index + 1}`
-            });
-        }
-
-        const replyMarkup = {
-            inline_keyboard: [keyboard]
-        };
-
-        await bot.sendMessage(chatId, "Stake Amount Choice", { reply_markup: replyMarkup });
-    }
-    async commandConfirmToggle(msg) {
-        const chatId = msg.chat.id;
-
-        if (!ALLOWED_CHATID.includes(chatId.toString())) {
-            await bot.sendMessage(chatId, "You are not authorized to use this bot.");
-            await this.sendMessageToChannel(`A person with ${chatId} attempted to use this bot.`);
-            return;
-        }
-
-        const keyboard = [{
-            text: `${this.confirmMode ? 'OFF' : 'ON'}`,
-            callback_data: `confirmToggle`
-        }];
-
-        const replyMarkup = {
-            inline_keyboard: [keyboard]
-        };
-
-        await bot.sendMessage(chatId, "Confirmation Mode", { reply_markup: replyMarkup });
-    }
-    async handleCallbackQuery(callbackQuery) {
-        const query = callbackQuery;
-        await bot.answerCallbackQuery(query.id);
-
-        const queryData = query.data;
-
-        if (queryData.startsWith("toleranceValue_")) {
-            const parts = queryData.split("_");
-            const tolerType = parts[1];
-            const sportName = parts[2];
-            const value = parseFloat(parts[3]);
-
-            tolerances[tolerType][sportName] = value;
-
-            await this.sendMessageToChannel(`${sportName} ${tolerType} Tolerance updated to ${value}`);
-
-            fs.writeFileSync("data/tolerances.json", JSON.stringify(tolerances, null, 2));
-        }
-        else if (queryData.startsWith("tolerance_")) {
-            await this.commandTolerancesValue(callbackQuery);
-        }
-        else if (queryData.startsWith("stakeAmountValue_")) {
-            const parts = queryData.split("_");
-            const index = parseInt(parts[1]);
-            const sportName = parts[2];
-            const value = parseInt(parts[3]);
-
-            stakeAmounts[index][sportName] = value;
-
-            await this.sendMessageToChannel(`${sportName} Stake ${index + 1} updated to ${value}. /stake_amount`);
-
-            fs.writeFileSync("data/stakeAmounts.json", JSON.stringify(stakeAmounts, null, 2));
-        }
-        else if (queryData.startsWith("stakeAmounts_")) {
-            await this.commandStakeAmountsValue(callbackQuery);
-        }
-        else if (queryData.startsWith("stakeChoice_")) {
-            this.stakeChoice = parseInt(queryData.split("_")[1]);
-
-            await this.sendMessageToChannel(`Stake Amount updated to ${this.stakeChoice}`);
-        }
-        else if (queryData.startsWith("confirmToggle")) {
-            this.confirmMode = !this.confirmMode;
-
-            await this.sendMessageToChannel(`Confirm Mode updated to ${this.confirmMode ? 'ON' : 'OFF'}`);
-        }
-        else if (queryData.startsWith("continue_")) {
-            const betslip = JSON.parse(queryData);
-            const service = this.services.find(service => service.serviceName == betslip.serviceName);
-            if (!service) {
-                await this.sendMessageToChannel(`Service ${betslip.serviceName} not found. Skipping...`);
-                return;
-            }
-            const outputs = await service.place(betslip, betslip.stake);
-            for (const output of outputs) {
-                if (output.stake) {
-                    await this.sendMessageToChannel(`👍 ${output.service} ${output.account.username} $${output.stake}`);
-                }
-                else await this.sendMessageToChannel(`👎 ${output.service} ${output.account.username} ${output.msg}.`);
-            }
-        }
-
-    }
-    async handleTextMessage(msg) {
-        const input = msg.text;
-
-        const parsedSignal = parseSignal.main(input);
-        let { betTeamName, period, marketName, points, odds, props, stake } = parsedSignal;
-        points = points == "pk" ? "pk" : Number(points);
-
-        const inputMsg = `🔥 ${input}\n${betTeamName} ${period} ${marketName} ${points}/${odds} $${stake || 0} ${props ? 'Props' : ''}`.trim();
-        await this.sendMessageToChannel(inputMsg);
-
-        let alert = "";
-        if (betTeamName == "") alert = "Invalid bet signal. Skipping...";
-        if (input.toLowerCase().includes("live")) alert = "Live bets are not supported. Skipping...";
-        if (this.placedTickets.includes(input)) alert = "Ticket already placed. Skipping...";
-        if (odds == 0) alert = "No odds value given. Skipping...";
-        if (props) alert = "Props are not supported. Skipping...";
-
-        if (alert) {
-            await this.sendMessageToChannel(alert);
-            return;
-        }
-
-        let outputs = [];
-        const sport = this.services.find(service => service.matches?.[betTeamName]?.[period]?.[marketName])?.matches?.[betTeamName]?.[period]?.[marketName]?.sport;
-        stake = stake || stakeAmounts?.[this.stakeChoice - 1]?.[sport] || 3;
-        for (const service of this.services) {
-            let betslip = service.matches?.[betTeamName]?.[period]?.[marketName];
-
-            if (!betslip) {
-                await this.sendMessageToChannel(`${service.serviceName}: Bet slip not found for ${betTeamName} ${period} ${marketName}. Skipping...`);
-                continue;
-            }
-
-            if (points == "pk") points = betslip.points;
-            if (marketName.includes("to")) points = -points;
-            const msg = `${service.serviceName} ${betslip.points}/${betslip.odds} $${stake} ${betslip.desc}`;
-            betslip.serviceName = service.serviceName;
-            betslip = { ...betslip, points, odds, stake };
-            const kb = { inline_keyboard: [[{ text: "Continue", callback_data: `continue_${JSON.stringify(betslip)}` }]] };
-            await this.sendMessageToChannel(msg, this.confirmMode ? kb : null);
-            if (this.confirmMode) continue;
-            outputs.push(...(await service.place(betslip, stake)));
-            stake -= outputs.reduce((acc, output) => acc + (output.stake || 0), 0);
-            if (stake <= 0) break;
-        }
-
-        for (const output of outputs) {
-            if (output.stake) {
-                if (!this.placedTickets.includes(input)) this.placedTickets.push(input);
-                await this.sendMessageToChannel(`👍 ${output.service} ${output.account.username} $${output.stake}`);
-            }
-            else await this.sendMessageToChannel(`👎 ${output.service} ${output.account.username} ${output.msg}.`);
-        }
-
-    }
-    async sendMessageToChannel(message, keyboard = null) {
-        for (const chatId of ALLOWED_CHATID) {
-            try {
-                await bot.sendMessage(chatId, message, {
-                    parse_mode: "HTML",
-                    disable_web_page_preview: true,
-                    reply_markup: keyboard
-                });
-            } catch (error) {
-                console.log(new Date().toLocaleString(), `Failed to send message to ${chatId}:`, error.message);
-            }
-        }
-    }
-    async errorHandler(error) {
-        console.log(new Date().toLocaleString(), "Bot error:", error.message);
-    }
-    async setupBotCommands() {
-        try {
-            const commands = [
-                { command: 'tolerances', description: 'View current tolerance settings' },
-                { command: 'stake_amounts', description: 'View available stake amounts' },
-                { command: 'stake_choice', description: 'Set your preferred stake amount' },
-                { command: 'confirm_toggle', description: 'Toggle confirmation mode on/off' },
-            ];
-
-            await bot.setMyCommands(commands);
-        } catch (error) {
-            console.log('Error setting up bot commands:', error.message);
-        }
-    }
-    botRunner() {
-        bot.on('channel_post', async (msg) => {
-            this.handleTextMessage(msg);
-        });
-
-        bot.on('message', async (msg) => {
-            if (msg.text.startsWith('/tolerances')) return this.commandTolerances(msg);
-            if (msg.text.startsWith('/stake_amounts')) return this.commandStakeAmounts(msg);
-            if (msg.text.startsWith('/stake_choice')) return this.commandStakeChoice(msg);
-            if (msg.text.startsWith('/confirm_toggle')) return this.commandConfirmToggle(msg);
-
-            for (const service of this.services) {
-                if (msg.text.startsWith(`${service.serviceName}/`)) {
-                    const username = msg.text.split("/")[1] || "";
-                    const password = msg.text.split("/")[2] || "";
-                    const playerId = msg.text.split("/")[3] || "";
-                    const profileId = msg.text.split("/")[4] || "";
-                    const profileLimitId = msg.text.split("/")[5] || "";
-
-                    const account = accounts[service.serviceName].find(account => account.username == username);
-                    if (account) {
-                        await this.sendMessageToChannel(`${service.serviceName} ${username} already exists. Skipping...`);
-                    }
-                    else {
-                        if (service.serviceName == "Godds") {
-                            if (playerId == "" || profileId == "" || profileLimitId == "") {
-                                await this.sendMessageToChannel(`${service.serviceName} ${username} missing playerId, profileId, or profileLimitId. Skipping...`);
-                                return;
-                            }
-                            accounts[service.serviceName].push({
-                                username: username,
-                                password: password,
-                                playerId: playerId,
-                                profileId: profileId,
-                                profileLimitId: profileLimitId,
-                                balance: 0,
-                                available: 0,
-                                atrisk: 0,
-                            });
-                        }
-                        else {
-                            accounts[service.serviceName].push({
-                                username: username,
-                                password: password,
-                                balance: 0,
-                                available: 0,
-                                atrisk: 0,
-                            });
-                        }
-                        fs.writeFileSync("data/accounts.json", JSON.stringify(accounts, null, 2));
-                        await this.sendMessageToChannel(`${service.serviceName} ${username} added. /users`);
-                    }
-                    return;
-                }
-            }
-
-            this.handleTextMessage(msg);
-        });
-
-        bot.on('callback_query', (query) => this.handleCallbackQuery(query));
-        bot.on('error', (error) => this.errorHandler(error));
-
-        this.setupBotCommands();
-
-        this.sendMessageToChannel("✨ Initializing… Please wait a moment while we get things ready for you.").then(() => {
-            const intervalId = setInterval(async () => {
-                if (this.services.every(service => service.isReady)) {
-                    await this.sendMessageToChannel("🔥 Your betting assistant is ready — let's win big!");
-                    clearInterval(intervalId);
-                }
-            }, 1000);
-        });
-    }
+  try {
+    const response = await fetch("https://strikerich.ag/cloud/api/WagerSport/checkWagerLineMulti", {
+      "headers": {
+        "accept": "*/*",
+        "accept-language": "en-US,en;q=0.9",
+        "authorization": `Bearer ${token}`,
+        "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "priority": "u=0, i",
+        "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"Windows\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "x-requested-with": "XMLHttpRequest",
+        "Referer": "https://strikerich.ag/sports.html?v=1766634763227"
+      },
+      "body": `list=${encodeURIComponent(JSON.stringify([c]))}&token=${token}&customerID=${customerID}+++&operation=checkWagerLineMulti&RRO=0&agentSite=0`,
+      "method": "POST"
+    });
+    const data = await response.json();
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
 }
 
-const server = new Server();
-server.init();
+async function insertWagerStraight(account, betslip, stake, res) {
+  const { AgentID, CurrencyCode, CreditAcctFlag, customerID, Store, Office, PercentBook, BaseballAction, CustProfile, token } = account;
+  const { GameNum, PeriodNumber, Status, team, suffix, PeriodDescription, description, wagerType, Team1ID, Team2ID, Team1RotNum, points, odds, decimal, numerator, denominator, totalOU } = betslip;
 
-require("./web/index.js")(server)
+  const val = Math.round(stake * (Math.abs(betslip.odds) / 100));
+  let risk = val, win = stake;
+  if (betslip.odds >= 100) risk = stake, win = val;
+
+  const v = wagerType !== "M" ? "" : "Y";
+  const h = wagerType !== "M" ? "" : "Y";
+
+  const B = wagerType === "M" ? `${odds > 0 ? "+" : ""}${odds}` : `${points > 0 ? "+" : ""}${points}`;
+
+  const date = new Date().toISOString().split("T")[0];
+
+  const S = {
+    date: date,
+    minPicks: 1,
+    totalPicks: 1,
+    maxPayOut: 0,
+    wagerCount: 1,
+    riskAmount: risk.toString(),
+    winAmount: win.toString(),
+    description: description,
+    lineType: wagerType,
+    team: team,
+    freePlay: "N",
+    agentID: AgentID,
+    currencyCode: CurrencyCode,
+    creditAcctFlag: CreditAcctFlag,
+    playNumber: 1
+  };
+  const A = {
+    team1: Team1ID,
+    team2: Team2ID,
+    rot1: Team1RotNum,
+    rot2: Team2RotNum,
+    line: suffix.replace(".5", "½"),
+    buy: false,
+    point: 0
+  };
+  let c = {
+    customerID: customerID,
+    docNum: Math.floor(1e8 * Math.random() + 1),
+    wagerType: wagerType,
+    gameNum: GameNum,
+    wagerCount: 1,
+    gameDate: res?.LIST?.[0]?.GameDateTime,
+    buyingFlag: res?.LIST?.[0]?.PreventPointBuyingFlag,
+    extraGames: "N",
+    sportType: res?.LIST?.[0]?.SportType,
+    sportSubType: res?.LIST?.[0]?.SportSubType,
+    lineType: wagerType,
+    adjSpread: wagerType === "S" ? `${points > 0 ? "+" : ""}${points}` : 0,
+    adjTotal: wagerType === "L" || wagerType === "E" ? points : 0,
+    priceType: "A",
+    finalMoney: odds,
+    finalDecimal: decimal,
+    finalNumerator: numerator,
+    finalDenominator: denominator,
+    chosenTeamID: team === 1 ? Team1ID : Team2ID,
+    riskAmount: risk.toString(),
+    winAmount: win.toString(),
+    store: Store,
+    office: Office,
+    custProfile: CustProfile,
+    periodNumber: PeriodNumber,
+    periodDescription: PeriodDescription,
+    oddsFlag: "Y" === v && "Y" === h ? "N" : "Y",
+    listedPitcher1: res?.LIST?.[0]?.ListedPitcher1,
+    pitcher1ReqFlag: v,
+    listedPitcher2: res?.LIST?.[0]?.ListedPitcher2,
+    pitcher2ReqFlag: h,
+    percentBook: PercentBook,
+    volumeAmount: (parseFloat(win) > parseFloat(risk) || 0 == parseInt(win) ? risk : win) * 100,
+    currencyCode: CurrencyCode,
+    date: date,
+    agentID: AgentID,
+    easternLine: 0,
+    origPrice: odds,
+    origDecimal: decimal,
+    origNumerator: numerator,
+    origDenominator: denominator,
+    creditAcctFlag: CreditAcctFlag,
+    wager: S,
+    itemNumber: 1,
+    wagerNumber: 0,
+    origSpread: B,
+    origTotal: B,
+    origMoney: 1,
+    extra: A,
+    status: Status,
+    printing: false
+  };
+  if (BaseballAction === "Fixed") {
+    c.oddsFlag = "N";
+    c.pitcher1ReqFlag = "N";
+    c.pitcher2ReqFlag = "N";
+  }
+  if (totalOU) {
+    c.totalPointsOU = totalOU;
+  }
+
+try {
+  const response = await fetch("https://strikerich.ag/cloud/api/WagerSport/insertWagerStraight", {
+    "headers": {
+      "accept": "*/*",
+      "accept-language": "en-US,en;q=0.9",
+      "authorization": `Bearer ${token}`,
+      "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "priority": "u=1, i",
+      "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "x-requested-with": "XMLHttpRequest",
+      "Referer": "https://strikerich.ag/sports.html?v=1766634763227"
+    },
+    "body": `customerID=${customerID}+++&list=${encodeURIComponent(JSON.stringify([c]))}&agentView=false&operation=insertWagerStraight&agToken=&delay=${encodeURIComponent(JSON.stringify(res?.DELAY))}&agentSite=0`,
+    "method": "POST"
+  });
+  const data = await response.json();
+  console.log(data);
+} catch (error) {
+  console.error(error);
+}
+}
+
+checkWagerLineMulti(token);

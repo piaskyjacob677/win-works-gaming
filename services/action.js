@@ -56,8 +56,8 @@ class Action {
             const games = listLeagues.reduce((prev, current) => [...prev, ...current], []).map(v => v.Games).reduce((prev, current) => [...prev, ...current], []);
 
             for (const gm of games) {
-                let team1 = gm.vtm;
-                let team2 = gm.htm;
+                let team1 = gm.vtm || "";
+                let team2 = gm.htm || "";
                 let is_props = new RegExp("player props", "i").test(desc);
                 if (is_props) {
                     if (new RegExp("most", "i").test(team1 + " " + team2)) continue;
@@ -155,32 +155,6 @@ class Action {
         } catch (error) {
             console.log(this.serviceName, error, league);
         }
-    }
-    async userLogin(account, agent) {
-        try {
-            const page = await fetch("https://backend.play23.ag/Login.aspx").then(r => r.text());
-            const viewState = page.match(/name="__VIEWSTATE".*?value="([^"]+)"/)[1];
-            const viewStateGenerator = page.match(/name="__VIEWSTATEGENERATOR".*?value="([^"]+)"/)[1];
-
-            const response = await fetch("https://backend.play23.ag/Login.aspx", {
-                agent: agent,
-                method: "POST",
-                headers: {
-                    "content-type": "application/x-www-form-urlencoded",
-                    "origin": "https://backend.play23.ag",
-                    "referer": "https://backend.play23.ag/Login.aspx"
-                },
-                body: `__VIEWSTATE=${encodeURIComponent(viewState)}&__VIEWSTATEGENERATOR=${viewStateGenerator}&Account=${account.username}&Password=${account.password}&BtnSubmit=`,
-                redirect: "manual"
-            });
-
-            account.sessionId = response.headers.get('set-cookie').match(/ASP\.NET_SessionId=([^;]+)/)[1];
-
-        } catch (error) {
-            console.log(this.serviceName, error);
-        }
-
-        return account;
     }
     async createWager(sessionId, sel, IdLeague, agent) {
         try {
@@ -363,6 +337,32 @@ class Action {
         }
         return outputs;
     }
+    async userLogin(account, agent) {
+        try {
+            const page = await fetch("https://backend.play23.ag/Login.aspx").then(r => r.text());
+            const viewState = page.match(/name="__VIEWSTATE".*?value="([^"]+)"/)[1];
+            const viewStateGenerator = page.match(/name="__VIEWSTATEGENERATOR".*?value="([^"]+)"/)[1];
+
+            const response = await fetch("https://backend.play23.ag/Login.aspx", {
+                agent: agent,
+                method: "POST",
+                headers: {
+                    "content-type": "application/x-www-form-urlencoded",
+                    "origin": "https://backend.play23.ag",
+                    "referer": "https://backend.play23.ag/Login.aspx"
+                },
+                body: `__VIEWSTATE=${encodeURIComponent(viewState)}&__VIEWSTATEGENERATOR=${viewStateGenerator}&Account=${account.username}&Password=${account.password}&BtnSubmit=`,
+                redirect: "manual"
+            });
+
+            account.sessionId = response.headers.get('set-cookie').match(/ASP\.NET_SessionId=([^;]+)/)[1];
+
+        } catch (error) {
+            console.log(this.serviceName, error);
+        }
+
+        return account;
+    }
     async getUserInfo(account, agent) {
         try {
             const response = await fetch("https://backend.play23.ag/wager/Welcome.aspx?login=1", {
@@ -431,7 +431,7 @@ class Action {
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
 }

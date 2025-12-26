@@ -202,38 +202,6 @@ class Godds {
             console.log(this.serviceName, error, league);
         }
     }
-    async userLogin(account, agent) {
-        try {
-            const response = await fetch(`https://${this.domain}/Actions/api/Login/PlayerLogin?player=${account.username}&password=${account.password}&domain=https://${this.domain}`, {
-                "agent": agent,
-                "headers": {
-                    "accept": "application/json, text/plain, */*",
-                    "accept-language": "en-US,en;q=0.9",
-                    "apptoken": "E35EA58E-245D-44F3-B51D-C3BACCB1CFD3",
-                    "locker-captcha-validated": "",
-                    "locker-status": "",
-                    "playertoken": "",
-                    "priority": "u=1, i",
-                    "sec-ch-ua": "\"Chromium\";v=\"140\", \"Not=A?Brand\";v=\"24\", \"Google Chrome\";v=\"140\"",
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": "\"Windows\"",
-                    "sec-fetch-dest": "empty",
-                    "sec-fetch-mode": "cors",
-                    "sec-fetch-site": "same-origin"
-                },
-                "referrer": `https://${this.domain}/BetSlip/`,
-                "body": null,
-                "method": "POST",
-                "mode": "cors",
-                "credentials": "include"
-            });
-            account.playerToken = (await response.json()).PlayerToken;
-        } catch (error) {
-            console.log(this.serviceName, error);
-        }
-
-        return account;
-    }
     async placebet(account, betslip, stake, pointsT, oddsT, agent) {
         if (account.playerToken == null) return { service: this.serviceName, account, msg: "Player token expired" };
 
@@ -254,8 +222,15 @@ class Godds {
         }
 
         const dateString = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\//g, "");
-        const toRisk = Math.abs(betslip.odds >= 100 ? stake : Math.round(stake * (betslip.odds / 100)));
-        const toWin = Math.abs(betslip.odds >= 100 ? Math.round(stake * (betslip.odds / 100)) : stake);
+        let toRisk = 0;
+        let toWin = 0;
+        if (betslip.odds >= 100) {
+            toRisk = stake;
+            toWin = Math.round(stake * (betslip.odds / 100));
+        } else {
+            toRisk = Math.round(stake * (-betslip.odds / 100));
+            toWin = stake;
+        }
 
         const body = {
             betSlip: {
@@ -366,6 +341,38 @@ class Godds {
         }
         return outputs;
     }
+    async userLogin(account, agent) {
+        try {
+            const response = await fetch(`https://${this.domain}/Actions/api/Login/PlayerLogin?player=${account.username}&password=${account.password}&domain=https://${this.domain}`, {
+                "agent": agent,
+                "headers": {
+                    "accept": "application/json, text/plain, */*",
+                    "accept-language": "en-US,en;q=0.9",
+                    "apptoken": "E35EA58E-245D-44F3-B51D-C3BACCB1CFD3",
+                    "locker-captcha-validated": "",
+                    "locker-status": "",
+                    "playertoken": "",
+                    "priority": "u=1, i",
+                    "sec-ch-ua": "\"Chromium\";v=\"140\", \"Not=A?Brand\";v=\"24\", \"Google Chrome\";v=\"140\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "same-origin"
+                },
+                "referrer": `https://${this.domain}/BetSlip/`,
+                "body": null,
+                "method": "POST",
+                "mode": "cors",
+                "credentials": "include"
+            });
+            account.playerToken = (await response.json()).PlayerToken;
+        } catch (error) {
+            console.log(this.serviceName, error);
+        }
+
+        return account;
+    }
     async getUserInfo(account, agent) {
         try {
             const response = await fetch(`https://${this.domain}/Actions/api/PlayerInformation/ReloadInformation`, {
@@ -440,7 +447,7 @@ class Godds {
             }
 
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
     async openBets(playerToken) {

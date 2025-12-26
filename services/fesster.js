@@ -212,40 +212,6 @@ class Fesster {
             console.log(this.serviceName, error, league);
         }
     }
-    async userLogin(account, agent) {
-        try {
-            const response = await fetch("https://m.blue987.com/login.aspx", {
-                "agent": agent,
-                "headers": {
-                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                    "accept-language": "en-US,en;q=0.9",
-                    "cache-control": "max-age=0",
-                    "content-type": "application/x-www-form-urlencoded",
-                    "priority": "u=0, i",
-                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": "\"Windows\"",
-                    "sec-fetch-dest": "document",
-                    "sec-fetch-mode": "navigate",
-                    "sec-fetch-site": "same-site",
-                    "sec-fetch-user": "?1",
-                    "upgrade-insecure-requests": "1",
-                    "Referer": "https://www.blue987.com/"
-                },
-                "body": `IdBook=&Account=${account.username.toUpperCase()}&Password=${account.password.toUpperCase()}&Submit=`,
-                "method": "POST",
-                "redirect": "manual"
-            });
-            const cookie = response.headers.get('set-cookie');
-            account.sessionId = cookie.match(/ASP\.NET_SessionId=([^;]+)/)[1];
-            account.playerId = Number(cookie.match(/SERVERID=RN-PLAYER(\d+);/)[1]).toString().padStart(2, "0");
-
-        } catch (error) {
-            console.log(this.serviceName, error);
-        }
-
-        return account;
-    }
     async getViewState(account, leagueID, selection, agent) {
         let viewState = null;
         let viewStateGenerator = null;
@@ -399,6 +365,40 @@ class Fesster {
         }
         return outputs;
     }
+    async userLogin(account, agent) {
+        try {
+            const response = await fetch("https://m.blue987.com/login.aspx", {
+                "agent": agent,
+                "headers": {
+                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "accept-language": "en-US,en;q=0.9",
+                    "cache-control": "max-age=0",
+                    "content-type": "application/x-www-form-urlencoded",
+                    "priority": "u=0, i",
+                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "document",
+                    "sec-fetch-mode": "navigate",
+                    "sec-fetch-site": "same-site",
+                    "sec-fetch-user": "?1",
+                    "upgrade-insecure-requests": "1",
+                    "Referer": "https://www.blue987.com/"
+                },
+                "body": `IdBook=&Account=${account.username.toUpperCase()}&Password=${account.password.toUpperCase()}&Submit=`,
+                "method": "POST",
+                "redirect": "manual"
+            });
+            const cookie = response.headers.get('set-cookie');
+            account.sessionId = cookie.match(/ASP\.NET_SessionId=([^;]+)/)[1];
+            account.playerId = Number(cookie.match(/SERVERID=RN-PLAYER(\d+);/)[1]).toString().padStart(2, "0");
+
+        } catch (error) {
+            console.log(this.serviceName, error);
+        }
+
+        return account;
+    }
     async getUserInfo(account, agent) {
         try {
             const response = await fetch("https://m.blue987.com/wager/Welcome.aspx", {
@@ -466,7 +466,7 @@ class Fesster {
             }
 
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
 }

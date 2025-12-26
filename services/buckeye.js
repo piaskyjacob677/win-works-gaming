@@ -14,7 +14,7 @@ class Buckeye {
         this.matches = {};
         this.accounts = [];
     }
-    async getLeagues(username, code, agent) {
+    async getLeagues(customerID, code, agent) {
         let leagues = [];
         try {
             const response = await fetch("https://strikerich.ag/cloud/api/League/Get_SportsLeagues", {
@@ -34,7 +34,7 @@ class Buckeye {
                     "x-requested-with": "XMLHttpRequest",
                     "Referer": "https://strikerich.ag/sports.html"
                 },
-                "body": `customerID=${username}_0+++&wagerType=Straight&office=PREMIER&placeLateFlag=false&operation=Get_SportsLeagues&RRO=1&agentSite=0`,
+                "body": `customerID=${customerID}+++&wagerType=Straight&office=PREMIER&placeLateFlag=false&operation=Get_SportsLeagues&RRO=1&agentSite=0`,
                 "method": "POST"
             });
 
@@ -51,7 +51,7 @@ class Buckeye {
         }
         return leagues;
     }
-    async getLeagueMatches(league, username, code, agent) {
+    async getLeagueMatches(league, customerID, code, agent) {
         try {
             const { sport, desc, sportType, sportSubType, period_0, periodNumber } = league;
 
@@ -72,20 +72,22 @@ class Buckeye {
                     "x-requested-with": "XMLHttpRequest",
                     "Referer": "https://strikerich.ag/sports.html"
                 },
-                "body": `customerID=${username}_0+++&operation=Get_LeagueLines2&sportType=${sportType}&sportSubType=${sportSubType}&period=${period_0}&hourFilter=0&propDescription=&wagerType=Straight&keyword=&office=PREMIER&correlationID=&periodNumber=${periodNumber}&periods=0&rotOrder=0&placeLateFlag=false&RRO=1&agentSite=0`,
+                "body": `customerID=${customerID}+++&operation=Get_LeagueLines2&sportType=${sportType}&sportSubType=${sportSubType}&period=${period_0}&hourFilter=0&propDescription=&wagerType=Straight&keyword=&office=PREMIER&correlationID=&periodNumber=${periodNumber}&periods=0&rotOrder=0&placeLateFlag=false&RRO=1&agentSite=0`,
                 "method": "POST"
             });
 
             const data = await response.json();
-            const games = data?.Lines || [];
+            const games = data?.Lines;
 
             for (const gm of games) {
-                let team1 = gm.Team1ID;
-                let team2 = gm.Team2ID;
+                const { GameNum, PeriodNumber, Status, PeriodDescription, SportType, Team1ID, Team2ID, FavoredTeamID, Team1RotNum, Team2RotNum, ShortName1, ShortName2 } = gm;
+
+                let team1 = Team1ID;
+                let team2 = Team2ID;
                 let is_props = new RegExp("player props", "i").test(desc);
                 if (is_props) {
                     if (new RegExp("most", "i").test(team1 + " " + team2)) continue;
-                    
+
                     team1 = playerPropsCleaner(sport, team1);
                     team2 = playerPropsCleaner(sport, team2);
                 }
@@ -96,89 +98,131 @@ class Buckeye {
                     team2 = getFullName(sport, team2) || team2;
                 }
 
-                const period = getPeriod(sport + " " + desc + " " + gm.Team1ID + " " + gm.Team2ID);
+                const period = getPeriod(sport + " " + desc + " " + Team1ID + " " + Team2ID);
                 const order = period.startsWith("1") ? 1000 : period.startsWith("2") ? 2000 : period.startsWith("3") ? 3000 : period.startsWith("4") ? 4000 : 0;
 
-                const base = { sport, desc, gameNum: gm.GameNum, periodNumber: gm.PeriodNumber, status: gm.Status, periodType: gm.PeriodDescription, team1: gm.Team1ID, team2: gm.Team2ID };
+                const base = { sport, desc, GameNum, PeriodNumber, Status, PeriodDescription, Team1ID, Team2ID, Team1RotNum, Team2RotNum, hasRotNumber: this.hasRotNumber, is_props };
 
                 if (gm.MoneyLine1) {
-                    const odds = Number(gm.MoneyLine1);
-                    const keyName = `${sport} [${gm.Team1RotNum}] ${team1} ${period} ml`;
+                    const odds = gm.MoneyLine1;
+                    const decimal = gm.MoneyLineDecimal1;
+                    const numerator = gm.MoneyLineNumerator1;
+                    const denominator = gm.MoneyLineDenominator1;
+                    const keyName = `${sport} [${Team1RotNum}] ${team1} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team1ID, wagerType: "M", points: 0, odds, suffix, order: order + 1 };
+                    const description = `${SportType.trim()} #${Team1RotNum} ${ShortName1} ${suffix} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, team: 1, wagerType: "M", points: 0, odds, decimal, numerator, denominator, description, suffix, order: order + 1 };
                 }
                 if (gm.MoneyLine2) {
-                    const odds = Number(gm.MoneyLine2);
-                    const keyName = `${sport} [${gm.Team2RotNum}] ${team2} ${period} ml`;
+                    const odds = gm.MoneyLine2;
+                    const decimal = gm.MoneyLineDecimal2;
+                    const numerator = gm.MoneyLineNumerator2;
+                    const denominator = gm.MoneyLineDenominator2;
+                    const keyName = `${sport} [${Team2RotNum}] ${team2} ${period} ml`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team2ID, wagerType: "M", points: 0, odds, suffix, order: order + 2 };
+                    const description = `${SportType.trim()} #${Team2RotNum} ${ShortName2} ${suffix} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, team: 2, wagerType: "M", points: 0, odds, decimal, numerator, denominator, description, suffix, order: order + 2 };
                 }
                 if (gm.SpreadAdj1) {
-                    const points = Number(gm.Spread);
-                    const odds = Number(gm.SpreadAdj1);
-                    const keyName = `${sport} [${gm.Team1RotNum}] ${team1} ${period} spread`;
-                    const suffix = `${points == 0 ? "PK" : points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team1ID, wagerType: "S", points, odds, suffix, order: order + 3 };
+                    const points = Team1ID == FavoredTeamID ? gm.Spread : -gm.Spread;
+                    const odds = gm.SpreadAdj1;
+                    const decimal = gm.SpreadDecimal1;
+                    const numerator = gm.SpreadNumerator1;
+                    const denominator = gm.SpreadDenominator1;
+                    const keyName = `${sport} [${Team1RotNum}] ${team1} ${period} spread`;
+                    const suffix = `${points == 0 ? "PK" : points > 0 ? "+" + points.toString() : points} ${odds > 0 ? "+" : ""}${odds}`;
+                    const description = `${SportType.trim()} #${Team1RotNum} ${ShortName1} ${suffix.replace(".5", "&#189").replace(" ", "; ")} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, team: 1, wagerType: "S", points, odds, decimal, numerator, denominator, description, suffix, order: order + 3 };
                 }
                 if (gm.SpreadAdj2) {
-                    const points = Number(gm.Spread);
-                    const odds = Number(gm.SpreadAdj2);
-                    const keyName = `${sport} [${gm.Team2RotNum}] ${team2} ${period} spread`;
-                    const suffix = `${points == 0 ? "PK" : points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team2ID, wagerType: "S", points, odds, suffix, order: order + 4 };
+                    const points = Team2ID == FavoredTeamID ? gm.Spread : -gm.Spread;
+                    const odds = gm.SpreadAdj2;
+                    const decimal = gm.SpreadDecimal2;
+                    const numerator = gm.SpreadNumerator2;
+                    const denominator = gm.SpreadDenominator2;
+                    const keyName = `${sport} [${Team2RotNum}] ${team2} ${period} spread`;
+                    const suffix = `${points == 0 ? "PK" : points > 0 ? "+" + points.toString() : points} ${odds > 0 ? "+" : ""}${odds}`;
+                    const description = `${SportType.trim()} #${Team2RotNum} ${ShortName2} ${suffix.replace(".5", "&#189").replace(" ", "; ")} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, team: 2, wagerType: "S", points, odds, decimal, numerator, denominator, description, suffix, order: order + 4 };
                 }
                 if (gm.TtlPtsAdj1) {
-                    const points = Number(gm.TotalPoints);
-                    const odds = Number(gm.TtlPtsAdj1);
-                    const title = gm.Team1ID == gm.Tea2ID ? `[${gm.Team1RotNum}] ${team1}` : `[${gm.Team1RotNum}] ${team1} : ${team2}`;
-                    const keyName = `${sport} ${title} ${period} to`;
+                    const points = gm.TotalPoints;
+                    const odds = gm.TtlPtsAdj1;
+                    const decimal = gm.TtlPointsDecimal1;
+                    const numerator = gm.TtlPointsNumerator1;
+                    const denominator = gm.TtlPointsDenominator1;
+                    const keyName = `${sport} [${Team1RotNum}] ${team1}/${team2} ${period} to`;
                     const suffix = `${-points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team1ID, wagerType: "L", points: -points, odds, suffix, order: order + 5 };
+                    const description = `${SportType.trim()} #${Team1RotNum} ${ShortName1}/${ShortName2} O ${suffix.replace(".5", "&#189").replace(" ", "; ")} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, totalOU: "O", team: 1, wagerType: "L", points: -points, odds, decimal, numerator, denominator, description, suffix, order: order + 5 };
                 }
                 if (gm.TtlPtsAdj2) {
-                    const points = Number(gm.TotalPoints);
-                    const odds = Number(gm.TtlPtsAdj2);
-                    const title = gm.Team1ID == gm.Tea2ID ? `[${gm.Team2RotNum}] ${team2}` : `[${gm.Team1RotNum}] ${team1} : ${team2}`;
-                    const keyName = `${sport} ${title} ${period} tu`;
+                    const points = gm.TotalPoints;
+                    const odds = gm.TtlPtsAdj2;
+                    const decimal = gm.TtlPointsDecimal2;
+                    const numerator = gm.TtlPointsNumerator2;
+                    const denominator = gm.TtlPointsDenominator2;
+                    const keyName = `${sport} [${Team2RotNum}] ${team1}/${team2} ${period} tu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team2ID, wagerType: "L", points, odds, suffix, order: order + 6 };
+                    const description = `${SportType.trim()} #${Team2RotNum} ${ShortName1}/${ShortName2} U ${suffix.replace(".5", "&#189").replace(" ", "; ")} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, totalOU: "U", team: 2, wagerType: "L", points, odds, decimal, numerator, denominator, description, suffix, order: order + 6 };
                 }
                 if (gm.MoneyLineDraw) {
-                    const odds = Number(gm.MoneyLineDraw);
-                    const keyName = `${sport} [${gm.Team1RotNum}] ${team1} : ${team2} ${period} draw`;
+                    const odds = gm.MoneyLineDraw;
+                    const decimal = gm.MoneyLineDecimalDraw;
+                    const numerator = gm.MoneyLineNumeratorDraw;
+                    const denominator = gm.MoneyLineDenominatorDraw;
+                    const keyName = `${sport} [${Team1RotNum}] ${team1} : ${team2} ${period} draw`;
                     const suffix = `${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team1ID, wagerType: "M", points: 0, odds, suffix, order: order + 7 };
+                    const description = `${SportType.trim()} #${Team1RotNum} Draw (${Team1ID} vs ${Team2ID}) ${suffix} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, team: 1, wagerType: "M", points: 0, odds, decimal, numerator, denominator, description, suffix, order: order + 7 };
                 }
                 if (gm.Team1TtlPtsAdj1) {
-                    const points = Number(gm.Team1TotalPoints);
-                    const odds = Number(gm.Team1TtlPtsAdj1);
-                    const keyName = `${sport} [${gm.Team1RotNum}] ${team1} ${period} tto`;
+                    const points = gm.Team1TotalPoints;
+                    const odds = gm.Team1TtlPtsAdj1;
+                    const decimal = gm.Team1TtlPtsDecimal1;
+                    const numerator = gm.Team1TtlPtsNumerator1;
+                    const denominator = gm.Team1TtlPtsDenominator1;
+                    const keyName = `${sport} [${Team1RotNum}] ${team1} ${period} tto`;
                     const suffix = `${-points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team1ID, wagerType: "L", points: -points, odds, suffix, order: order + 8 };
+                    const description = `${SportType.trim()} #${Team1RotNum} ${ShortName1} O ${suffix.replace(".5", "&#189").replace(" ", "; ")} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, totalOU: "O", team: 1, wagerType: "E", points: -points, odds, decimal, numerator, denominator, description, suffix, order: order + 8 };
                 }
                 if (gm.Team1TtlPtsAdj2) {
-                    const points = Number(gm.Team1TotalPoints);
-                    const odds = Number(gm.Team1TtlPtsAdj2);
-                    const keyName = `${sport} [${gm.Team1RotNum}] ${team1} ${period} ttu`;
-                    const suffix = `${-points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team1ID, wagerType: "L", points, odds, suffix, order: order + 8 };
+                    const points = gm.Team1TotalPoints;
+                    const odds = gm.Team1TtlPtsAdj2;
+                    const decimal = gm.Team1TtlPtsDecimal2;
+                    const numerator = gm.Team1TtlPtsNumerator2;
+                    const denominator = gm.Team1TtlPtsDenominator2;
+                    const keyName = `${sport} [${Team1RotNum}] ${team1} ${period} ttu`;
+                    const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
+                    const description = `${SportType.trim()} #${Team1RotNum} ${ShortName1} U ${suffix.replace(".5", "&#189").replace(" ", "; ")} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, totalOU: "U", team: 1, wagerType: "E", points, odds, decimal, numerator, denominator, description, suffix, order: order + 8 };
                 }
                 if (gm.Team2TtlPtsAdj1) {
-                    const points = Number(gm.Team2TotalPoints);
-                    const odds = Number(gm.Team2TtlPtsAdj1);
-                    const keyName = `${sport} [${gm.Team2RotNum}] ${team2} ${period} tto`;
+                    const points = gm.Team2TotalPoints;
+                    const odds = gm.Team2TtlPtsAdj1;
+                    const decimal = gm.Team2TtlPtsDecimal1;
+                    const numerator = gm.Team2TtlPtsNumerator1;
+                    const denominator = gm.Team2TtlPtsDenominator1;
+                    const keyName = `${sport} [${Team2RotNum}] ${team2} ${period} tto`;
                     const suffix = `${-points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team2ID, wagerType: "L", points: -points, odds, suffix, order: order + 9 };
+                    const description = `${SportType.trim()} #${Team2RotNum} ${ShortName2} O ${suffix.replace(".5", "&#189").replace(" ", "; ")} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, totalOU: "O", team: 2, wagerType: "E", points: -points, odds, decimal, numerator, denominator, description, suffix, order: order + 9 };
                 }
                 if (gm.Team2TtlPtsAdj2) {
-                    const points = Number(gm.Team2TotalPoints);
-                    const odds = Number(gm.Team2TtlPtsAdj2);
-                    const keyName = `${sport} [${gm.Team2RotNum}] ${team2} ${period} ttu`;
+                    const points = gm.Team2TotalPoints;
+                    const odds = gm.Team2TtlPtsAdj2;
+                    const decimal = gm.Team2TtlPtsDecimal2;
+                    const numerator = gm.Team2TtlPtsNumerator2;
+                    const denominator = gm.Team2TtlPtsDenominator2;
+                    const keyName = `${sport} [${Team2RotNum}] ${team2} ${period} ttu`;
                     const suffix = `${points} ${odds > 0 ? "+" : ""}${odds}`;
-                    this.matches[keyName] = { ...base, chosenTeamID: gm.Team2ID, wagerType: "L", points, odds, suffix, order: order + 9 };
+                    const description = `${SportType.trim()} #${Team2RotNum} ${ShortName2} U ${suffix.replace(".5", "&#189").replace(" ", "; ")} - For ${PeriodDescription} `;
+                    this.matches[keyName] = { ...base, totalOU: "U", team: 2, wagerType: "E", points, odds, decimal, numerator, denominator, description, suffix, order: order + 9 };
                 }
             }
-           
+
             console.log(prettyLog(this.serviceName, sport, desc, games.length));
             return true;
 
@@ -186,55 +230,214 @@ class Buckeye {
             console.log(this.serviceName, error, league);
         }
     }
-    async placebet(account, betslip, stake) {
-        if (account.code == null) return { service: this.serviceName, account, msg: "Token expired" };
+    async checkWagerLineMulti(account, betslip, stake, agent) {
+        const { customerID, Store, CustProfile, code, Cookie } = account;
+        const { GameNum, PeriodNumber, Status, PeriodDescription, description, wagerType } = betslip;
 
-        const pointsTolerance = tolerances.Points[betslip.sport] || 0;
-        const oddsTolerance = tolerances.Cents[betslip.sport] || 10;
-        const risk = Math.abs(betslip.odds >= 100 ? stake : Math.round(stake * (betslip.odds / 100)));
-        const win = Math.abs(betslip.odds >= 100 ? Math.round(stake * (betslip.odds / 100)) : stake);
+        const v = Math.round(stake * (Math.abs(betslip.odds) / 100));
+        let risk = v, win = stake;
+        if (betslip.odds >= 100) risk = stake, win = v;
 
-        const { sport, desc, gameNum, periodNumber, status, periodType, wagerType, points, odds, chosenTeamID } = betslip;
-
-        const list1 = [{ gameNum, periodNumber, "store": "PPHINSIDER", status, "profile": ".", periodType, risk: String(risk), win: String(win), wagerType }];
-        const list2 = [{ "customerID": account.username + "0   ", wagerType, gameNum, "wagerCount": 1, "buyingFlag": "N", "extraGames": "N", "lineType": wagerType, "priceType": "A", "finalMoney": betslip.odds, chosenTeamID, "riskAmount": risk, "winAmount": win, "store": "PPHINSIDER          ", "office": "PREMIER", "custProfile": ".                   ", periodNumber, "periodDescription": periodType, "oddsFlag": "N", "listedPitcher1": null, "pitcher1ReqFlag": "Y", "listedPitcher2": null, "pitcher2ReqFlag": "Y", "currencyCode": "USD", "agentID": "MYLESM07A.", "creditAcctFlag": "Y", "wager": { "minPicks": 1, "totalPicks": 1, "maxPayOut": 0, "wagerCount": 1, "riskAmount": String(risk), "winAmount": String(win), "lineType": wagerType, "team": 1, "freePlay": "N", "agentID": "MYLESM07A.", "currencyCode": "USD", "creditAcctFlag": "Y", "playNumber": 1 }, "itemNumber": 1, "wagerNumber": 0, "extra": { team1, team2, "line": `${points > 0 ? "+" : ""}${points} ${odds > 0 ? "+" : ""}${odds}`, "buy": false, "point": 0 }, status, "printing": false }];
+        const c = {
+            position: Math.floor(1e8 * Math.random() + 1),
+            gameNum: GameNum,
+            contestantNum: 0,
+            periodNumber: PeriodNumber,
+            store: Store.trim(),
+            status: Status,
+            profile: CustProfile.trim(),
+            periodType: PeriodDescription,
+            description: description,
+            risk: risk.toString(),
+            win: win.toString(),
+            wagerType: wagerType
+        };
 
         try {
-            let res = await fetch("https://strikerich.ag/cloud/api/WagerSport/checkWagerLineMulti", {
+            const response = await fetch("https://strikerich.ag/cloud/api/WagerSport/checkWagerLineMulti", {
+                "agent": agent,
                 "headers": {
                     "accept": "*/*",
-                    "authorization": `Bearer ${account.code}`,
+                    "accept-language": "en-US,en;q=0.9",
+                    "authorization": `Bearer ${code}`,
                     "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    "priority": "u=0, i",
+                    "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "same-origin",
                     "x-requested-with": "XMLHttpRequest",
+                    "cookie": Cookie,
+                    "Referer": "https://strikerich.ag/sports.html?v=1766634763227"
                 },
-                "body": `list=${encodeURIComponent(JSON.stringify(list1))}&token=${account.code}&customerID=RD341_0+++&operation=checkWagerLineMulti&RRO=0&agentSite=0`,
+                "body": `list=${encodeURIComponent(JSON.stringify([c]))}&token=${code}&customerID=${customerID}+++&operation=checkWagerLineMulti&RRO=0&agentSite=0`,
                 "method": "POST"
             });
-            res = await res.json();
-            const delay = res.DELAY;
-            res = await fetch("https://strikerich.ag/cloud/api/WagerSport/insertWagerStraight", {
-                "headers": {
-                    "accept": "*/*",
-                    "authorization": `Bearer ${account.code}`,
-                    "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-                    "x-requested-with": "XMLHttpRequest",
-                },
-                "body": `customerID=RD341_0+++&list=${encodeURIComponent(JSON.stringify(list2))}&agentView=false&operation=insertWagerStraight&agToken=&delay=${encodeURIComponent(JSON.stringify(delay))}&agentSite=0`,
-                "method": "POST"
-            });
-            const result = await res.json();
-            if (result?.STATUS?.test == "ok") return { service: this.serviceName, account, stake };
-            return { service: this.serviceName, account, msg: "failed" };
-        }
-        catch (error) {
-            return { service: this.serviceName, account, msg: error.message };
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error(this.serviceName, error);
         }
     }
-    async place(betslip, stake) {
+    async insertWagerStraight(account, betslip, stake, res, agent) {
+        const { AgentID, CurrencyCode, CreditAcctFlag, customerID, Store, Office, PercentBook, BaseballAction, CustProfile, code, Cookie } = account;
+        const { GameNum, PeriodNumber, Status, team, suffix, PeriodDescription, description, wagerType, Team1ID, Team2ID, Team1RotNum, Team2RotNum, points, odds, decimal, numerator, denominator, totalOU } = betslip;
+
+        const val = Math.round(stake * (Math.abs(betslip.odds) / 100));
+        let risk = val, win = stake;
+        if (betslip.odds >= 100) risk = stake, win = val;
+
+        console.log(betslip.odds, risk, win);
+
+        const v = wagerType !== "M" ? "" : "Y";
+        const h = wagerType !== "M" ? "" : "Y";
+
+        const B = wagerType === "M" ? `${odds > 0 ? "+" : ""}${odds}` : `${points > 0 ? "+" : ""}${points}`;
+
+        const date = new Date().toISOString().split("T")[0];
+
+        const S = {
+            date: date,
+            minPicks: 1,
+            totalPicks: 1,
+            maxPayOut: 0,
+            wagerCount: 1,
+            riskAmount: risk.toString(),
+            winAmount: win.toString(),
+            description: description,
+            lineType: wagerType,
+            team: team,
+            freePlay: "N",
+            agentID: AgentID,
+            currencyCode: CurrencyCode,
+            creditAcctFlag: CreditAcctFlag,
+            playNumber: 1
+        };
+        const A = {
+            team1: Team1ID,
+            team2: Team2ID,
+            rot1: Team1RotNum,
+            rot2: Team2RotNum,
+            line: suffix.replace(".5", "½"),
+            buy: false,
+            point: 0
+        };
+        let c = {
+            customerID: customerID,
+            docNum: Math.floor(1e8 * Math.random() + 1),
+            wagerType: wagerType,
+            gameNum: GameNum,
+            wagerCount: 1,
+            gameDate: res?.LIST?.[0]?.GameDateTime,
+            buyingFlag: res?.LIST?.[0]?.PreventPointBuyingFlag,
+            extraGames: "N",
+            sportType: res?.LIST?.[0]?.SportType,
+            sportSubType: res?.LIST?.[0]?.SportSubType,
+            lineType: wagerType,
+            adjSpread: wagerType === "S" ? `${points > 0 ? "+" : ""}${points}` : 0,
+            adjTotal: wagerType === "L" || wagerType === "E" ? points : 0,
+            priceType: "A",
+            finalMoney: odds,
+            finalDecimal: decimal,
+            finalNumerator: numerator,
+            finalDenominator: denominator,
+            chosenTeamID: team === 1 ? Team1ID : Team2ID,
+            riskAmount: risk.toString(),
+            winAmount: win.toString(),
+            store: Store,
+            office: Office,
+            custProfile: CustProfile,
+            periodNumber: PeriodNumber,
+            periodDescription: PeriodDescription,
+            oddsFlag: "Y" === v && "Y" === h ? "N" : "Y",
+            listedPitcher1: res?.LIST?.[0]?.ListedPitcher1,
+            pitcher1ReqFlag: v,
+            listedPitcher2: res?.LIST?.[0]?.ListedPitcher2,
+            pitcher2ReqFlag: h,
+            percentBook: PercentBook,
+            volumeAmount: (parseFloat(win) > parseFloat(risk) || 0 == parseInt(win) ? risk : win) * 100,
+            currencyCode: CurrencyCode,
+            date: date,
+            agentID: AgentID,
+            easternLine: 0,
+            origPrice: odds,
+            origDecimal: decimal,
+            origNumerator: numerator,
+            origDenominator: denominator,
+            creditAcctFlag: CreditAcctFlag,
+            wager: S,
+            itemNumber: 1,
+            wagerNumber: 0,
+            origSpread: B,
+            origTotal: B,
+            origMoney: 1,
+            extra: A,
+            status: Status,
+            printing: false
+        };
+        if (BaseballAction === "Fixed") {
+            c.oddsFlag = "N";
+            c.pitcher1ReqFlag = "N";
+            c.pitcher2ReqFlag = "N";
+        }
+        if (totalOU) {
+            c.totalPointsOU = totalOU;
+        }
+
+        try {
+            const response = await fetch("https://strikerich.ag/cloud/api/WagerSport/insertWagerStraight", {
+                "agent": agent,
+                "headers": {
+                    "accept": "*/*",
+                    "accept-language": "en-US,en;q=0.9",
+                    "authorization": `Bearer ${code}`,
+                    "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    "priority": "u=1, i",
+                    "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "same-origin",
+                    "x-requested-with": "XMLHttpRequest",
+                    "cookie": Cookie,
+                    "Referer": "https://strikerich.ag/sports.html?v=1766634763227"
+                },
+                "body": `customerID=${customerID}+++&list=${encodeURIComponent(JSON.stringify([c]))}&agentView=false&operation=insertWagerStraight&agToken=&delay=${encodeURIComponent(JSON.stringify(res?.DELAY))}&agentSite=0`,
+                "method": "POST"
+            });
+            const data = await response.json();
+            console.log(data);
+            return data;
+        } catch (error) {
+            console.error(this.serviceName, error);
+        }
+    }
+    async placebet(account, betslip, stake, pointsT, oddsT, agent) {
+        if (account.code == null) return { service: this.serviceName, account, msg: "Token expired" };
+
+        const res = await this.checkWagerLineMulti(account, betslip, stake, agent);
+        if (!res) return { service: this.serviceName, account, msg: "Check wager line multi failed" };
+
+        const result = await this.insertWagerStraight(account, betslip, stake, res, agent);
+        if (result?.STATUS?.test == "ok") return { service: this.serviceName, account, stake: stake };
+        if (result?.STATUS?.MSG && result?.STATUS?.TYPE) return { service: this.serviceName, account, msg: `Type ${result?.STATUS?.TYPE}: ${result?.STATUS?.MSG}` };
+        return { service: this.serviceName, account, msg: "Insert wager straight failed" };
+    }
+    async place(betslip, stake, pointsT = 0, oddsT = 10) {
         let outputs = [];
         for (let account of this.accounts) {
-            const result = await this.placebet(account, betslip, stake);
+            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
+
+            const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
+            const result = await this.placebet(account, betslip, stake, pointsT, oddsT, agent);
+
+            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
             outputs.push(result);
+            stake -= result.stake || 0;
+            if (stake <= 0) break;
         }
         return outputs;
     }
@@ -273,12 +476,13 @@ class Buckeye {
     }
     async getUserInfo(account, agent) {
         try {
+            const { username, code } = account;
             const response = await fetch("https://strikerich.ag/cloud/api/Customer/getAccountInfo", {
                 "agent": agent,
                 "headers": {
                     "accept": "*/*",
                     "accept-language": "en-US,en;q=0.9",
-                    "authorization": `Bearer ${account.code}`,
+                    "authorization": `Bearer ${code}`,
                     "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
                     "priority": "u=0, i",
                     "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
@@ -291,14 +495,33 @@ class Buckeye {
                     "cookie": "__cf_bm=mRWpkTGuNiSPOogggbA4bN2nCToDiATNOSrmdazAifQ-1762346507-1.0.1.1-o.jlC_KDM2cDCuFlfS1LxOisXyBvUb92guOojvfdbSj3NUOP0zeDcrCyvT89Hjs5GmThHHDog3EGasolGQfOFPs.U7OxSUm30vALZdBqrss; PHPSESSID=16c3s18ulrb898rcaa7birisc6",
                     "Referer": "https://strikerich.ag/sports.html?v=1762346533537"
                 },
-                "body": `customerID=${account.username}_0&token=${account.code}&access_token=${account.code}&operation=getAccountInfo&RRO=0&agentSite=0`,
+                "body": `customerID=${username}_0&token=${code}&access_token=${code}&operation=getAccountInfo&RRO=0&agentSite=0`,
                 "method": "POST"
             });
             const result = await response.json();
-            account.balance = result?.accountInfo?.CurrentBalance / 100;
-            account.available = result?.accountInfo?.AvailableBalance;
-            account.atrisk = result?.accountInfo?.PendingWagerBalance / 100;
-            if (isNaN(account.balance) || isNaN(account.available) || isNaN(account.atrisk)) account.code = null;
+            const accountInfo = result?.accountInfo;
+            const ips = result?.ips;
+            if (accountInfo) {
+                account.balance = accountInfo.CurrentBalance / 100;
+                account.available = accountInfo.AvailableBalance;
+                account.atrisk = accountInfo.PendingWagerBalance / 100;
+                account.customerID = accountInfo.customerID;
+                account.AgentID = accountInfo.AgentID;
+                account.CurrencyCode = accountInfo.CurrencyCode;
+                account.CreditAcctFlag = accountInfo.CreditAcctFlag;
+                account.Store = accountInfo.Store;
+                account.Office = accountInfo.Office;
+                account.CustProfile = accountInfo.CustProfile;
+                account.PercentBook = accountInfo.PercentBook;
+                account.BaseballAction = accountInfo.BaseballAction;
+            }
+
+            if (ips) {
+                account.Cookie = ips.Cookie;
+            }
+            else {
+                account.code = null;
+            }
 
         } catch (error) {
             account.code = null;

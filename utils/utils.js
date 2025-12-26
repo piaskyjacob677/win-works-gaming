@@ -25,7 +25,7 @@ exports.leagueNameCleaner = (sport, desc) => {
 
     let content = sport + " " + desc;
 
-    if (new RegExp("way|win|double|alter|adjust|score|margin|next|time|most", "i").test(content)) return;
+    if (new RegExp("way|win|double|alter|adjust|score|margin|next|time|most|live|special|game props", "i").test(content)) return;
     
     let is_valid = false;
     for (const batch of batches) {

@@ -220,64 +220,6 @@ class Highroller {
             console.log(this.serviceName, error, league);
         }
     }
-    async userLogin(account, agent) {
-        try {
-            let response = await fetch("https://www.thehighroller.net/Login.aspx", {
-                "agent": agent,
-                "headers": {
-                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                    "accept-language": "en-US,en;q=0.9",
-                    "cache-control": "max-age=0",
-                    "priority": "u=0, i",
-                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": "\"Windows\"",
-                    "sec-fetch-dest": "document",
-                    "sec-fetch-mode": "navigate",
-                    "sec-fetch-site": "none",
-                    "sec-fetch-user": "?1",
-                    "upgrade-insecure-requests": "1",
-                },
-                "body": null,
-                "method": "GET"
-            });
-            const data = await response.text();
-            const viewState = data.match(/name="__VIEWSTATE".*?value="([^"]+)"/)[1];
-            const viewStateGenerator = data.match(/name="__VIEWSTATEGENERATOR".*?value="([^"]+)"/)[1];
-            const eventValidation = data.match(/name="__EVENTVALIDATION".*?value="([^"]+)"/)[1];
-            const cookie = response.headers.get('set-cookie').replace(" path=/,", "").replace(" path=/; HttpOnly", "") + " IsAgent-IsClassic=false-true";
-
-            response = await fetch("https://www.thehighroller.net/Login.aspx", {
-                "agent": agent,
-                "headers": {
-                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                    "accept-language": "en-US,en;q=0.9",
-                    "cache-control": "max-age=0",
-                    "content-type": "application/x-www-form-urlencoded",
-                    "priority": "u=0, i",
-                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": "\"Windows\"",
-                    "sec-fetch-dest": "document",
-                    "sec-fetch-mode": "navigate",
-                    "sec-fetch-site": "same-origin",
-                    "sec-fetch-user": "?1",
-                    "upgrade-insecure-requests": "1",
-                    "cookie": cookie,
-                    "Referer": "https://www.thehighroller.net/Login.aspx"
-                },
-                "body": `__VIEWSTATE=${encodeURIComponent(viewState)}&__VIEWSTATEGENERATOR=${encodeURIComponent(viewStateGenerator)}&__EVENTVALIDATION=${encodeURIComponent(eventValidation)}&Account=${account.username}&Password=${account.password}&ctl00%24MainContent%24loginControl1%24BtnSubmit=Login&IdBook=&Redir=&ctl00%24MainContent%24loginControl1%24hdnResponsiveUrl=%2FLogin.aspx&ctl00%24MainContent%24loginControl1%24hdnResponsiveMblUrl=%2FLogin.aspx&ctl00%24MainContent%24loginControl1%24hdnDynamicDskUrl=https%3A%2F%2Fdynamic.thehighroller.net%2Fservice%2FLogIn.aspx&ctl00%24MainContent%24loginControl1%24hdnDynamicMblUrl=https%3A%2F%2Fdynamic.thehighroller.net%2Fservice%2FLogInMobile.aspx&ctl00%24MainContent%24loginControl1%24hdnClassicAgDskUrl=agents%2F&ctl00%24MainContent%24loginControl1%24hdnClassicAgMblUrl=agents-mobile%2F&ctl00%24MainContent%24loginControl1%24hdnDynamicAgDskUrl=https%3A%2F%2Fdynamic.thehighroller.net%2Fagents%2FLogin.aspx&ctl00%24MainContent%24loginControl1%24hdnDynamicAgMblUrl=https%3A%2F%2Fdynamic.thehighroller.net%2Fagents%2FLoginMobile.aspx&ctl00%24MainContent%24loginControl1%24hdnIsMobile=False`,
-                "method": "POST"
-            });
-
-            account.cookie = cookie;
-
-        } catch (error) {
-            console.log(this.serviceName, error);
-        }
-
-        return account;
-    }
     async getViewState(cookie, leagueID, selection, agent) {
         let viewState = null;
         let viewStateGenerator = null;
@@ -436,6 +378,64 @@ class Highroller {
         }
         return outputs;
     }
+    async userLogin(account, agent) {
+        try {
+            let response = await fetch("https://www.thehighroller.net/Login.aspx", {
+                "agent": agent,
+                "headers": {
+                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "accept-language": "en-US,en;q=0.9",
+                    "cache-control": "max-age=0",
+                    "priority": "u=0, i",
+                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "document",
+                    "sec-fetch-mode": "navigate",
+                    "sec-fetch-site": "none",
+                    "sec-fetch-user": "?1",
+                    "upgrade-insecure-requests": "1",
+                },
+                "body": null,
+                "method": "GET"
+            });
+            const data = await response.text();
+            const viewState = data.match(/name="__VIEWSTATE".*?value="([^"]+)"/)[1];
+            const viewStateGenerator = data.match(/name="__VIEWSTATEGENERATOR".*?value="([^"]+)"/)[1];
+            const eventValidation = data.match(/name="__EVENTVALIDATION".*?value="([^"]+)"/)[1];
+            const cookie = response.headers.get('set-cookie').replace(" path=/,", "").replace(" path=/; HttpOnly", "") + " IsAgent-IsClassic=false-true";
+
+            response = await fetch("https://www.thehighroller.net/Login.aspx", {
+                "agent": agent,
+                "headers": {
+                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "accept-language": "en-US,en;q=0.9",
+                    "cache-control": "max-age=0",
+                    "content-type": "application/x-www-form-urlencoded",
+                    "priority": "u=0, i",
+                    "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Windows\"",
+                    "sec-fetch-dest": "document",
+                    "sec-fetch-mode": "navigate",
+                    "sec-fetch-site": "same-origin",
+                    "sec-fetch-user": "?1",
+                    "upgrade-insecure-requests": "1",
+                    "cookie": cookie,
+                    "Referer": "https://www.thehighroller.net/Login.aspx"
+                },
+                "body": `__VIEWSTATE=${encodeURIComponent(viewState)}&__VIEWSTATEGENERATOR=${encodeURIComponent(viewStateGenerator)}&__EVENTVALIDATION=${encodeURIComponent(eventValidation)}&Account=${account.username}&Password=${account.password}&ctl00%24MainContent%24loginControl1%24BtnSubmit=Login&IdBook=&Redir=&ctl00%24MainContent%24loginControl1%24hdnResponsiveUrl=%2FLogin.aspx&ctl00%24MainContent%24loginControl1%24hdnResponsiveMblUrl=%2FLogin.aspx&ctl00%24MainContent%24loginControl1%24hdnDynamicDskUrl=https%3A%2F%2Fdynamic.thehighroller.net%2Fservice%2FLogIn.aspx&ctl00%24MainContent%24loginControl1%24hdnDynamicMblUrl=https%3A%2F%2Fdynamic.thehighroller.net%2Fservice%2FLogInMobile.aspx&ctl00%24MainContent%24loginControl1%24hdnClassicAgDskUrl=agents%2F&ctl00%24MainContent%24loginControl1%24hdnClassicAgMblUrl=agents-mobile%2F&ctl00%24MainContent%24loginControl1%24hdnDynamicAgDskUrl=https%3A%2F%2Fdynamic.thehighroller.net%2Fagents%2FLogin.aspx&ctl00%24MainContent%24loginControl1%24hdnDynamicAgMblUrl=https%3A%2F%2Fdynamic.thehighroller.net%2Fagents%2FLoginMobile.aspx&ctl00%24MainContent%24loginControl1%24hdnIsMobile=False`,
+                "method": "POST"
+            });
+
+            account.cookie = cookie;
+
+        } catch (error) {
+            console.log(this.serviceName, error);
+        }
+
+        return account;
+    }
     async getUserInfo(account, agent) {
         try {
             const response = await fetch("https://www.thehighroller.net/wager/CreateSports.aspx?WT=0&msg=true", {
@@ -505,7 +505,7 @@ class Highroller {
             }
 
             this.isReady = true;
-            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
+            fs.writeFileSync(resolveApp(`./events/${process.env.USER_PORT}/${this.serviceName}.json`), JSON.stringify(this.matches, null, 2));
         }
     }
 }
