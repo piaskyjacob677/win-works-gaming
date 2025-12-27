@@ -199,7 +199,7 @@ class Action {
             }
         }];
 
-        await notify(`${this.serviceName} - ${account.username} confirming wager`, "7807642696");
+        notify(`${this.serviceName} - ${account.username} confirming wager`);
 
         try {
             const response = await fetch("https://backend.action23.ag/wager/ConfirmWagerHelper.aspx", {
@@ -251,7 +251,7 @@ class Action {
 
         stake = confirmWagerResult.stake;
 
-        await notify(`${this.serviceName} - ${account.username} posting wager`, "7807642696");
+        notify(`${this.serviceName} - ${account.username} posting wager`);
 
         try {
             const detailedData = [{ 
@@ -309,7 +309,7 @@ class Action {
                 const points = wagerResult.details[0].details[0].OriginalPoints;
                 const odds = wagerResult.details[0].details[0].OriginalOdds;
                 if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, betslip.idmk == 2 || betslip.idmk == 3 ? "total" : "")) {
-                    await notify(`${this.serviceName} - ${account.username} game line change: ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}`, "7807642696");
+                    notify(`${this.serviceName} - ${account.username} game line change: ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}`);
                     return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
                 }
                 this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, agent, deep + 1).then(resolve);
@@ -328,9 +328,9 @@ class Action {
         let outputs = [];
         for (let account of this.accounts) {
             const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
-            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} start placing bet`);
             const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
-            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
@@ -403,9 +403,9 @@ class Action {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
                 if (!account.sessionId) {
-                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    notify(`${this.serviceName} - ${account.username} login failed`);
                     account = await this.userLogin(account, agent);
-                    if (account.sessionId) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                    if (account.sessionId) notify(`${this.serviceName} - ${account.username} login success`);
                 }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));

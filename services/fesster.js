@@ -217,7 +217,7 @@ class Fesster {
         let viewStateGenerator = null;
         let eventValidation = null;
 
-        await notify(`${this.serviceName} - ${account.username} getting view state`, "7807642696");
+        notify(`${this.serviceName} - ${account.username} getting view state`);
 
         try {
             const response = await fetch(`https://m.blue987.com/wager/CreateWager.aspx?WT=0&lg=${leagueID}&sel=${selection}`, {
@@ -254,7 +254,7 @@ class Fesster {
     async createWager(account, leagueID, selection, stake, agent) {
         let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(account, leagueID, selection, agent);
 
-        await notify(`${this.serviceName} - ${account.username} creating wager`, "7807642696");
+        notify(`${this.serviceName} - ${account.username} creating wager`);
 
         try {
             const response = await fetch(`https://m.blue987.com/wager/CreateWager.aspx?WT=0&lg=${leagueID}&sel=${selection}`, {
@@ -305,7 +305,7 @@ class Fesster {
         const eventValidation = result.eventValidation;
         stake = result.stake;
 
-        await notify(`${this.serviceName} - ${account.username} confirming wager`, "7807642696");
+        notify(`${this.serviceName} - ${account.username} confirming wager`);
 
         try {
             const response = await fetch("https://m.blue987.com/wager/ConfirmWager.aspx?WT=0", {
@@ -356,9 +356,9 @@ class Fesster {
         let outputs = [];
         for (let account of this.accounts) {
             const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
-            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} start placing bet`);
             const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
-            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
@@ -437,9 +437,9 @@ class Fesster {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
                 if (!account.sessionId) {
-                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    notify(`${this.serviceName} - ${account.username} login failed`);
                     account = await this.userLogin(account, agent);
-                    if (account.sessionId) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                    if (account.sessionId) notify(`${this.serviceName} - ${account.username} login success`);
                 }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));

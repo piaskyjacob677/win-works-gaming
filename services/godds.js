@@ -232,6 +232,26 @@ class Godds {
             toWin = stake;
         }
 
+        const S = {
+            Id: `${betslip.idgm}${betslip.name.replace(/ /g, "")}${betslip.stl}${betslip.hv}`,
+            SportId: betslip.sport,
+            GameId: betslip.idgm,
+            GameTypeId: betslip.idgmType,
+            TeamName: betslip.name,
+            BetSpotType: betslip.stl,
+            MatchOdd: matchOdd,
+            OriginalMatchOdd: matchOdd,
+            GameTime: betslip.gameTime,
+            LeagueName: betslip.desc,
+            BetTypeLimitUsed: false,
+            BuyPoints: 0,
+            ParentGameId: betslip.idpgm,
+            FamilyGameId: betslip.idfgm,
+            HomeOrVisitor: betslip.hv,
+            IsOnOpenBets: false,
+            Pitcher: 0
+        };
+
         const body = {
             betSlip: {
                 PlayerId: account.playerId,
@@ -243,25 +263,7 @@ class Godds {
                         Id: `${dateString}11`,
                         ToRisk: toRisk,
                         ToWin: toWin,
-                        Details: [{
-                            Id: `${betslip.idgm}${betslip.name.replace(/ /g, "")}${betslip.stl}${betslip.hv}`,
-                            SportId: betslip.sport,
-                            GameId: betslip.idgm,
-                            GameTypeId: betslip.idgmType,
-                            TeamName: betslip.name,
-                            BetSpotType: betslip.stl,
-                            MatchOdd: matchOdd,
-                            OriginalMatchOdd: matchOdd,
-                            GameTime: betslip.gameTime,
-                            LeagueName: betslip.desc,
-                            BetTypeLimitUsed: false,
-                            BuyPoints: 0,
-                            ParentGameId: betslip.idpgm,
-                            FamilyGameId: betslip.idfgm,
-                            HomeOrVisitor: betslip.hv,
-                            IsOnOpenBets: false,
-                            Pitcher: 0
-                        }]
+                        Details: [S]
                     }],
                     BetType: 1,
                     OpenSpots: 0,
@@ -306,20 +308,23 @@ class Godds {
             }
             else {
                 const errorMsg = res[0].errorResponse.errorMessage;
-                if (errorMsg.includes("line change")) {
+                if (new RegExp("line change", "i").test(errorMsg)) {
                     const currentMatch = res[0].errorResponse.gameLists.differentGames[0];
                     const points = currentMatch.matchOdd.numberPoints;
                     const odds = currentMatch.matchOdd.odds;
                     if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, betslip.stl == 1 ? "total" : "")) {
-                        await notify(`${this.serviceName} - ${account.username} game line change: ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}`, "7807642696");
+                        notify(`${this.serviceName} - ${account.username} game line change: ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}`);
                         return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
                     }
                     return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT);
                 }
-                else if (errorMsg.includes("Your current limit is")) {
+                else if (new RegExp("your current limit is", "i").test(errorMsg)) {
                     stake = Number(errorMsg.match(/Your current limit is ([0-9.]+)/)?.[1]?.replace(/[$,USD]/g, "").trim());
-                    await notify(`${this.serviceName} - ${account.username} wager limit reached: $${stake}`, "7807642696");
+                    notify(`${this.serviceName} - ${account.username} wager limit reached: $${stake}`);
                     return await this.placebet(account, betslip, stake, pointsT, oddsT);
+                }
+                else if (new RegExp("captcha", "i").test(errorMsg)) {
+                    return { service: this.serviceName, account, msg: "You need to change this account to a new account." };
                 }
                 else return { service: this.serviceName, account, msg: errorMsg };
             }
@@ -332,9 +337,9 @@ class Godds {
         let outputs = [];
         for (let account of this.accounts) {
             const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
-            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} start placing bet`);
             const result = await this.placebet(account, betslip, Math.max(Math.min(stake, account.user_maxWager, account.user_max), account.minWager), pointsT, oddsT, agent);
-            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
@@ -418,9 +423,9 @@ class Godds {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
                 if (!account.playerToken) {
-                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    notify(`${this.serviceName} - ${account.username} login failed`);
                     account = await this.userLogin(account, agent);
-                    if (account.playerToken) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                    if (account.playerToken) notify(`${this.serviceName} - ${account.username} login success`);
                 }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));

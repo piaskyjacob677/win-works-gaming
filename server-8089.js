@@ -17,12 +17,12 @@ const accounts = require(resolveApp(`./data/${process.env.USER_PORT}/accounts.js
 class Server {
     constructor() {
         this.services = [
-            // new Abcwager(),
-            // new Action(),
-            // new Fesster(),
-            // new Godds(),
-            // new Betwindycity(),
-            // new Highroller(),
+            new Abcwager(),
+            new Action(),
+            new Fesster(),
+            new Godds(),
+            new Betwindycity(),
+            new Highroller(),
             new Buckeye(),
         ];
     }

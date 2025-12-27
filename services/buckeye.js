@@ -428,13 +428,15 @@ class Buckeye {
     }
     async place(betslip, stake, pointsT = 0, oddsT = 10) {
         let outputs = [];
+        stake = Math.max(stake, 10);
+        
         for (let account of this.accounts) {
-            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} start placing bet`);
 
             const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
             const result = await this.placebet(account, betslip, stake, pointsT, oddsT, agent);
 
-            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
@@ -534,9 +536,9 @@ class Buckeye {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
                 if (!account.code) {
-                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    notify(`${this.serviceName} - ${account.username} login failed`);
                     account = await this.userLogin(account, agent);
-                    if (account.code) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                    if (account.code) notify(`${this.serviceName} - ${account.username} login success`);
                 }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));

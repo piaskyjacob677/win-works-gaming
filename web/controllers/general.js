@@ -57,7 +57,7 @@ class GeneralCtr {
             let totalStake = amount;
             for (const event of finalEvents) {
                 if (totalStake <= 0) break;
-                await notify(`${event.serviceName} - ${event.title} placing bet: $${totalStake}`, "7807642696");
+                notify(`${event.serviceName} - ${event.title} placing bet: $${totalStake}`);
                 const service = this.service.services.find(service => service.serviceName == event.serviceName);
                 const results = await service.place(event, totalStake, pointTolerance, oddsTolerance);
                 finalResults.push(...results);

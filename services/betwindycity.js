@@ -263,7 +263,7 @@ class Betwindycity {
             "PasswordConfirmation": null
         };
 
-        await notify(`${this.serviceName} - ${account.username} saving bet`, "7807642696");
+        notify(`${this.serviceName} - ${account.username} saving bet`);
 
         const response = await fetch("https://betwindycity.com/player-api/api/wager/SaveBet/", {
             "agent": agent,
@@ -294,7 +294,7 @@ class Betwindycity {
         return { ticketNumber: data?.TicketNumber, errorMsg };
     }
     async confirmBet(token, ticketNumber, agent) {
-        await notify(`${this.serviceName} - ${account.username} confirming bet`, "7807642696");
+        notify(`${this.serviceName} - ${account.username} confirming bet`);
 
         const response = await fetch("https://betwindycity.com/player-api/api/wager/confirmBet/", {
             "agent": agent,
@@ -333,9 +333,9 @@ class Betwindycity {
         stake = stake > betslip.limit ? betslip.limit : stake;
         for (let account of this.accounts) {
             const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
-            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} start placing bet`);
             const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
-            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
@@ -424,9 +424,9 @@ class Betwindycity {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
                 if (!account.token) {
-                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    notify(`${this.serviceName} - ${account.username} login failed`);
                     account = await this.userLogin(account, agent);
-                    if (account.token) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                    if (account.token) notify(`${this.serviceName} - ${account.username} login success`);
                 }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));

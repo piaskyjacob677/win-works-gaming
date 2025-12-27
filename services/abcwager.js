@@ -229,7 +229,7 @@ class Abcwager {
         let viewStateGenerator = null;
         let eventValidation = null;
 
-        await notify(`${this.serviceName} - ${account.username} getting view state`, "7807642696");
+        notify(`${this.serviceName} - ${account.username} getting view state`);
 
         try {
             const response = await fetch(`https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${leagueID}&wt=0&sel=${selection}`, {
@@ -266,7 +266,7 @@ class Abcwager {
     async createWager(account, leagueID, selection, stake, agent) {
         let { viewState, viewStateGenerator, eventValidation } = await this.getViewState(account, leagueID, selection, agent);
 
-        await notify(`${this.serviceName} - ${account.username} creating wager`, "7807642696");
+        notify(`${this.serviceName} - ${account.username} creating wager`);
         try {
             const response = await fetch(`https://wager.abcwagering.ag/wager/CreateWager.aspx?lg=${leagueID}&sel=${selection}&wt=0`, {
                 "agent": agent,
@@ -296,7 +296,7 @@ class Abcwager {
             eventValidation = data.match(/name="__EVENTVALIDATION".*?value="([^"]+)"/)[1];
             if (data.includes("Your Current Wager Limit is")) {
                 stake = Number(data.match(/Your Current Wager Limit is ([0-9.]+)/)?.[1]?.replace(/[$,USD]/g, "").trim());
-                await notify(`${this.serviceName} - ${account.username} wager limit reached: ${stake}`, "7807642696");
+                notify(`${this.serviceName} - ${account.username} wager limit reached: ${stake}`);
                 return await this.createWager(account, leagueID, selection, stake);
             }
         }
@@ -318,7 +318,7 @@ class Abcwager {
         const eventValidation = result.eventValidation;
         stake = result.stake;
 
-        await notify(`${this.serviceName} - ${account.username} confirming wager`, "7807642696");
+        notify(`${this.serviceName} - ${account.username} confirming wager`);
 
         try {
             const response = await fetch("https://wager.abcwagering.ag/wager/ConfirmWager.aspx?WT=0", {
@@ -349,7 +349,7 @@ class Abcwager {
                 const points = String(Number(lineChange.match(/^[+-]?[0-9.]+/)));
                 const odds = String(Number(lineChange.match(/[+-]?[0-9.]+$/)));
                 if (!toleranceCheck(points, odds, betslip.points, betslip.odds, pointsT, oddsT, idmk == 2 || idmk == 3 ? "total" : "")) {
-                    await notify(`${this.serviceName} - ${account.username} game line change: ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}`, "7807642696");
+                    notify(`${this.serviceName} - ${account.username} game line change: ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}`);
                     return { service: this.serviceName, account, msg: `Game line change. ${betslip.points}/${betslip.odds} ➝ ${points}/${odds}` };
                 }
                 return await this.placebet(account, { ...betslip, points, odds }, stake, pointsT, oddsT, agent, deep + 1);
@@ -367,12 +367,12 @@ class Abcwager {
     async place(betslip, stake, pointsT = 0, oddsT = 10) {
         let outputs = [];
         for (let account of this.accounts) {
-            await notify(`${this.serviceName} - ${account.username} start placing bet`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} start placing bet`);
 
             const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
             const result = await this.placebet(account, betslip, Math.min(stake, account.user_max), pointsT, oddsT, agent);
 
-            await notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`, "7807642696");
+            notify(`${this.serviceName} - ${account.username} ${result.msg ? `failed: ${result.msg}` : `success: ${result.stake}`}`);
             outputs.push(result);
             stake -= result.stake || 0;
             if (stake <= 0) break;
@@ -477,9 +477,9 @@ class Abcwager {
             for (let account of this.accounts) {
                 const agent = account.proxy_url ? new HttpsProxyAgent(account.proxy_url) : null;
                 if (!account.sessionId) {
-                    await notify(`${this.serviceName} - ${account.username} login failed`, "7807642696");
+                    notify(`${this.serviceName} - ${account.username} login failed`);
                     account = await this.userLogin(account, agent);
-                    if (account.sessionId) await notify(`${this.serviceName} - ${account.username} login success`, "7807642696");
+                    if (account.sessionId) notify(`${this.serviceName} - ${account.username} login success`);
                 }
                 account = await this.getUserInfo(account, agent);
                 await new Promise(resolve => setTimeout(resolve, 1000));
